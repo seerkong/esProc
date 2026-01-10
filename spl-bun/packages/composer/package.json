@@ -1,0 +1,20 @@
+{
+  "name": "@esproc/composer",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@esproc/core": "workspace:*",
+    "@esproc/expression": "workspace:*",
+    "@esproc/spl-dsl": "workspace:*",
+    "@esproc/sqlite-adapter": "workspace:*",
+    "@esproc/test-utils": "workspace:*"
+  },
+  "scripts": {
+    "build": "bun x tsc -p tsconfig.json"
+  }
+}

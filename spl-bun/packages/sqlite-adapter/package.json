@@ -1,0 +1,19 @@
+﻿{
+    "name":  "@esproc/sqlite-adapter",
+    "version":  "0.0.0",
+    "type":  "module",
+    "main":  "./dist/index.js",
+    "types":  "./dist/index.d.ts",
+    "exports":  {
+                    ".":  "./src/index.ts"
+                },
+    "scripts":  {
+                    "build":  "bun x tsc -p tsconfig.json"
+                },
+    "dependencies":  {
+                         "@esproc/core":  "workspace:*"
+                     },
+    "devDependencies":  {
+                            "@esproc/test-utils":  "workspace:*"
+                        }
+}

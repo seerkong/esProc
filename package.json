@@ -1,0 +1,14 @@
+{
+  "name": "spl-bun",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "test": "bun test",
+    "build": "bun run --filter @esproc/core build && bun run --filter @esproc/sqlite-adapter build && bun run --filter @esproc/test-utils build"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

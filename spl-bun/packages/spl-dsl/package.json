@@ -1,0 +1,16 @@
+{
+  "name": "@esproc/spl-dsl",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@esproc/expression": "workspace:*"
+  },
+  "scripts": {
+    "build": "bun x tsc -p tsconfig.json"
+  }
+}

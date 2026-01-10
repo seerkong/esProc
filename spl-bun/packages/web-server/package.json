@@ -1,0 +1,20 @@
+{
+  "name": "@esproc/web-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/server.ts",
+    "start": "bun run src/server.ts",
+    "convert-demo": "bun run scripts/convert-demo.ts"
+  },
+  "dependencies": {
+    "@esproc/spl-dsl": "workspace:*",
+    "@esproc/web-shared": "workspace:*",
+    "@elysiajs/cors": "^1.0.0",
+    "elysia": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

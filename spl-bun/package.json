@@ -1,0 +1,22 @@
+{
+  "name": "spl-bun",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "test": "bun test",
+    "build": "bun run --filter @esproc/expression build && bun run --filter @esproc/spl-dsl build && bun run --filter @esproc/core build && bun run --filter @esproc/sqlite-adapter build && bun run --filter @esproc/web-shared build && bun run --filter @esproc/composer build && bun run --filter @esproc/web-ide build && bun run --filter @esproc/web-server build && bun run --filter @esproc/test-utils build",
+    "web-ide:dev": "bun run scripts/web-ide-dev.ts"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "typescript": "5.4.5"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.4.1",
+    "@univerjs/preset-sheets-core": "^0.15.1",
+    "@univerjs/presets": "^0.15.1",
+    "elysia": "^1.4.21"
+  }
+}
