@@ -15,7 +15,7 @@ describe("expression-driven dataset operations", () => {
       { id: 2, amount: 20, status: "closed" },
       { id: 3, amount: 75, status: "open" },
     ]);
-    const filtered = ds.filterExpr("amount > 30 and status = \"open\"");
+    const filtered = ds.filterExpr("amount > 30 and status == \"open\"");
     expect(filtered.rows.map((r) => r.id)).toEqual([1, 3]);
   });
 

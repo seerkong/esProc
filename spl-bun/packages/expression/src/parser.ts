@@ -1,6 +1,6 @@
 import type { BinaryOperator, ExpressionNode, UnaryOperator } from "./ast";
 
-type TokenType = "number" | "string" | "identifier" | "operator" | "paren" | "comma" | "eof";
+type TokenType = "number" | "string" | "identifier" | "operator" | "paren" | "eof";
 
 interface Token {
   type: TokenType;
@@ -16,6 +16,11 @@ const OPERATORS = [
   "=",
   "<",
   ">",
+  "+=",
+  "-=",
+  "*=",
+  "/=",
+  "%=",
   "+",
   "-",
   "*",
@@ -23,6 +28,17 @@ const OPERATORS = [
   "%",
   "&&",
   "||",
+  "&",
+  "^",
+  "\\",
+  "|",
+  ".",
+  ",",
+  "[",
+  "]",
+  "{",
+  "}",
+  ":",
 ];
 
 function tokenize(input: string): Token[] {
@@ -84,11 +100,6 @@ function tokenize(input: string): Token[] {
       i += 1;
       continue;
     }
-    if (ch === ",") {
-      tokens.push({ type: "comma", position: i });
-      i += 1;
-      continue;
-    }
 
     const twoChar = input.slice(i, i + 2);
     const op =
@@ -141,8 +152,8 @@ export function parseExpression(source: string): ExpressionNode {
         const args: ExpressionNode[] = [];
         if (!match("paren", ")")) {
           do {
-            args.push(parseOr());
-          } while (match("comma"));
+            args.push(parseAssignment());
+          } while (match("operator", ","));
           if (!match("paren", ")")) {
             throw new Error(`Expected ')' at position ${current().position}`);
           }
@@ -160,7 +171,80 @@ export function parseExpression(source: string): ExpressionNode {
       return expr;
     }
 
+    if (tok.type === "operator" && tok.value === "[") {
+      consume();
+      const items: ExpressionNode[] = [];
+      if (!(current().type === "operator" && current().value === "]")) {
+        do {
+          items.push(parseAssignment());
+        } while (match("operator", ","));
+      }
+      if (!(current().type === "operator" && current().value === "]")) {
+        throw new Error(`Expected ']' at position ${current().position}`);
+      }
+      consume();
+      return { type: "list", items };
+    }
+
+    if (tok.type === "operator" && tok.value === "{") {
+      consume();
+      const entries: { key: string; value: ExpressionNode }[] = [];
+      if (!(current().type === "operator" && current().value === "}")) {
+        do {
+          const keyTok = current();
+          if (keyTok.type !== "identifier" && keyTok.type !== "string") {
+            throw new Error(`Expected record key at position ${current().position}`);
+          }
+          consume();
+          const key = keyTok.value ?? "";
+          if (!(current().type === "operator" && current().value === ":")) {
+            throw new Error(`Expected ':' after record key at position ${current().position}`);
+          }
+          consume();
+          const value = parseAssignment();
+          entries.push({ key, value });
+        } while (match("operator", ","));
+      }
+      if (!(current().type === "operator" && current().value === "}")) {
+        throw new Error(`Expected '}' at position ${current().position}`);
+      }
+      consume();
+      return { type: "record", entries };
+    }
+
     throw new Error(`Unexpected token at position ${tok.position}`);
+  }
+
+  function parseMemberAccess(): ExpressionNode {
+    let node = parsePrimary();
+    while (true) {
+      const tok = current();
+      if (tok.type === "operator" && tok.value === ".") {
+        consume();
+        if (current().type !== "identifier") {
+          throw new Error(`Expected identifier after '.' at position ${current().position}`);
+        }
+        const propTok = current();
+        consume();
+        if (match("paren", "(")) {
+          const args: ExpressionNode[] = [];
+          if (!match("paren", ")")) {
+            do {
+              args.push(parseOr());
+            } while (match("comma"));
+            if (!match("paren", ")")) {
+              throw new Error(`Expected ')' at position ${current().position}`);
+            }
+          }
+          node = { type: "member_call", object: node, method: propTok.value!, args };
+        } else {
+          node = { type: "member", object: node, property: propTok.value! };
+        }
+      } else {
+        break;
+      }
+    }
+    return node;
   }
 
   function parseUnary(): ExpressionNode {
@@ -177,7 +261,7 @@ export function parseExpression(source: string): ExpressionNode {
       consume();
       return { type: "unary", op: "not", operand: parseUnary() };
     }
-    return parsePrimary();
+    return parseMemberAccess();
   }
 
   function parseMultiplicative(): ExpressionNode {
@@ -219,7 +303,7 @@ export function parseExpression(source: string): ExpressionNode {
         else if (tok.value === ">") op = "gt";
         else if (tok.value === "<=") op = "lte";
         else if (tok.value === ">=") op = "gte";
-      } else if (tok.type === "operator" && ["=", "==", "!="].includes(tok.value ?? "")) {
+      } else if (tok.type === "operator" && ["==", "!="].includes(tok.value ?? "")) {
         op = tok.value === "!=" ? "neq" : "eq";
       }
       if (!op) break;
@@ -229,8 +313,24 @@ export function parseExpression(source: string): ExpressionNode {
     return node;
   }
 
-  function parseAnd(): ExpressionNode {
+  function parseSetOps(): ExpressionNode {
     let node = parseComparison();
+    while (true) {
+      const tok = current();
+      let op: BinaryOperator | null = null;
+      if (tok.type === "operator" && tok.value === "&") op = "union";
+      else if (tok.type === "operator" && tok.value === "^") op = "intersect";
+      else if (tok.type === "operator" && tok.value === "\\") op = "diff";
+      else if (tok.type === "operator" && tok.value === "|") op = "conj";
+      if (!op) break;
+      consume();
+      node = { type: "binary", op, left: node, right: parseComparison() };
+    }
+    return node;
+  }
+
+  function parseAnd(): ExpressionNode {
+    let node = parseSetOps();
     while (true) {
       const tok = current();
       if (
@@ -263,7 +363,39 @@ export function parseExpression(source: string): ExpressionNode {
     return node;
   }
 
-  const result = parseOr();
+  function parseAssignment(): ExpressionNode {
+    let node = parseOr();
+    while (true) {
+      const tok = current();
+      let op: BinaryOperator | null = null;
+      if (tok.type === "operator" && tok.value === "=") op = "assign";
+      else if (tok.type === "operator" && tok.value === "+=") op = "add_assign";
+      else if (tok.type === "operator" && tok.value === "-=") op = "subtract_assign";
+      else if (tok.type === "operator" && tok.value === "*=") op = "multiply_assign";
+      else if (tok.type === "operator" && tok.value === "/=") op = "divide_assign";
+      else if (tok.type === "operator" && tok.value === "%=") op = "mod_assign";
+      if (!op) break;
+      consume();
+      node = { type: "binary", op, left: node, right: parseAssignment() };
+    }
+    return node;
+  }
+
+  function parseComma(): ExpressionNode {
+    let node = parseAssignment();
+    while (true) {
+      const tok = current();
+      if (tok.type === "operator" && tok.value === ",") {
+        consume();
+        node = { type: "binary", op: "comma", left: node, right: parseAssignment() };
+      } else {
+        break;
+      }
+    }
+    return node;
+  }
+
+  const result = parseComma();
   if (current().type !== "eof") {
     throw new Error(`Unexpected token at position ${current().position}`);
   }

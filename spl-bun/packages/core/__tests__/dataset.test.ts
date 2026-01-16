@@ -1,4 +1,4 @@
-﻿import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { DataSet, unsupportedOperation } from "../src";
 
 describe("DataSet operations", () => {
@@ -33,6 +33,16 @@ describe("DataSet operations", () => {
       { category: "a", total: 25, count: 2 },
       { category: "b", total: 7, count: 1 },
     ]);
+  });
+
+  test("aggregateWithGather runs gather lifecycle", () => {
+    const ds = DataSet.fromRows(rows);
+    const aggregated = ds.aggregateWithGather({
+      total: { type: "sum", field: "value" },
+      avgVal: { type: "avg", field: "value" },
+      count: { type: "count" },
+    });
+    expect(aggregated.rows[0]).toEqual({ total: 32, avgVal: 32 / 3, count: 3 });
   });
 
   test("unsupported operations are rejected", () => {

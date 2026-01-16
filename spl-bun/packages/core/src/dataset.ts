@@ -1,4 +1,5 @@
 import { compileExpression, truthy } from "@esproc/expression";
+import { AvgGather, CountGather, SumGather, runGather, type GatherFunction } from "./gather";
 
 export type Value = unknown;
 export type Row = Record<string, Value>;
@@ -12,6 +13,11 @@ export interface AggregateSpec {
   groupBy?: string[];
   aggregates: Record<string, (rows: Row[]) => Value>;
 }
+
+export type GatherSpec = {
+  [name: string]: { type: "sum" | "count" | "avg"; field?: string };
+};
+
 
 export type JoinType = "inner" | "left";
 
@@ -135,6 +141,20 @@ export class DataSet {
 
     return new DataSet(schema, resultRows);
   }
+
+  aggregateWithGather(spec: GatherSpec): DataSet {
+    const rows = [
+      Object.fromEntries(
+        Object.entries(spec).map(([name, cfg]) => {
+          const gather = createGather(cfg);
+          return [name, runGather(gather, this.rows)];
+        }),
+      ),
+    ];
+    const schema: ColumnSchema[] = Object.keys(spec).map((name) => ({ name, type: "number" }));
+    return new DataSet(schema, rows);
+  }
+
 
   join(other: DataSet, spec: JoinSpec): DataSet {
     const rightKeys = spec.rightKeys ?? spec.leftKeys;
@@ -269,6 +289,20 @@ export class DataSet {
     return [...this.rows];
   }
 }
+
+function createGather(cfg: { type: "sum" | "count" | "avg"; field?: string }): GatherFunction {
+  switch (cfg.type) {
+    case "sum":
+      return new SumGather(cfg.field);
+    case "count":
+      return new CountGather();
+    case "avg":
+      return new AvgGather(cfg.field);
+    default:
+      throw new Error(`Unknown gather type: ${cfg.type}`);
+  }
+}
+
 
 function inferSchema(rows: Row[]): ColumnSchema[] {
   if (rows.length === 0) {

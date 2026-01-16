@@ -8,7 +8,7 @@ describe("expression parser and evaluator", () => {
     });
     test("logical operators and null semantics", () => {
         expect(evaluateExpression("a > 1 and b < 10", scope)).toBe(true);
-        expect(evaluateExpression("name = null", scope)).toBe(true);
+        expect(evaluateExpression("name == null", scope)).toBe(true);
         expect(evaluateExpression("name != null", scope)).toBe(false);
         expect(evaluateExpression("name or a", scope)).toBe(true);
     });

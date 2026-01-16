@@ -5,9 +5,14 @@ export type ExpressionNode =
   | { type: "identifier"; name: string }
   | { type: "unary"; op: UnaryOperator; operand: ExpressionNode }
   | { type: "binary"; op: BinaryOperator; left: ExpressionNode; right: ExpressionNode }
-  | { type: "call"; callee: string; args: ExpressionNode[] };
+  | { type: "call"; callee: string; args: ExpressionNode[] }
+  | { type: "member"; object: ExpressionNode; property: string }
+  | { type: "member_call"; object: ExpressionNode; method: string; args: ExpressionNode[] }
+  | { type: "list"; items: ExpressionNode[] }
+  | { type: "record"; entries: { key: string; value: ExpressionNode }[] };
 
 export type UnaryOperator = "negate" | "not" | "plus";
+
 export type BinaryOperator =
   | "add"
   | "subtract"
@@ -21,7 +26,24 @@ export type BinaryOperator =
   | "gt"
   | "gte"
   | "and"
-  | "or";
+  | "or"
+  | "assign"
+  | "add_assign"
+  | "subtract_assign"
+  | "multiply_assign"
+  | "divide_assign"
+  | "mod_assign"
+  | "union"
+  | "intersect"
+  | "diff"
+  | "conj"
+  | "comma";
+
+export type MemberOperator = {
+  type: "member";
+  object: ExpressionNode;
+  property: string;
+};
 
 export interface CompiledExpression {
   ast: ExpressionNode;
