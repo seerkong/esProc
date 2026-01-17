@@ -86,13 +86,18 @@
             <subtask id="T2.2.3" name="运行测试并修复" status="DONE" />
           </subtasks>
         </task>
-        <task id="T2.3" name="实现表/记录成员函数">
+        <task id="T2.3" name="实现表/记录成员函数" commit="b90312dc3">
           <priority>P1</priority>
-          <status>TODO</status>
+          <status>DONE</status>
+          <acceptance_criteria>
+            <criterion id="T2.3-AC1" checked="true">Record members field/fname/fno/key/record implemented with index semantics parity.</criterion>
+            <criterion id="T2.3-AC2" checked="true">Table members keys/row implemented with dataset keys and schema fallback.</criterion>
+            <criterion id="T2.3-AC3" checked="true">Expression tests cover record/table member functions.</criterion>
+          </acceptance_criteria>
           <subtasks>
-            <subtask id="T2.3.1" name="编写失败测试（表/记录函数）" status="TODO" />
-            <subtask id="T2.3.2" name="实现表/记录成员函数" status="TODO" />
-            <subtask id="T2.3.3" name="运行测试并修复" status="TODO" />
+            <subtask id="T2.3.1" name="编写失败测试（表/记录函数）" status="DONE" />
+            <subtask id="T2.3.2" name="实现表/记录成员函数" status="DONE" />
+            <subtask id="T2.3.3" name="运行测试并修复" status="DONE" />
           </subtasks>
         </task>
       </tasks>
