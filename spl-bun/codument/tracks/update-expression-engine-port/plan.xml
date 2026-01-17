@@ -30,13 +30,13 @@
             <subtask id="T1.2.3" name="运行测试并修复" status="DONE" />
           </subtasks>
         </task>
-        <task id="T1.3" name="实现高级聚合缺口">
+        <task id="T1.3" name="实现高级聚合缺口" commit="f957f8cc2">
           <priority>P1</priority>
-          <status>TODO</status>
+          <status>DONE</status>
           <subtasks>
-            <subtask id="T1.3.1" name="编写失败测试（高级聚合）" status="TODO" />
-            <subtask id="T1.3.2" name="实现高级聚合函数/行为" status="TODO" />
-            <subtask id="T1.3.3" name="运行测试并修复" status="TODO" />
+            <subtask id="T1.3.1" name="编写失败测试（高级聚合）" status="DONE" />
+            <subtask id="T1.3.2" name="实现高级聚合函数/行为" status="DONE" />
+            <subtask id="T1.3.3" name="运行测试并修复" status="DONE" />
           </subtasks>
         </task>
       </tasks>
