@@ -47,10 +47,29 @@
       <tasks>
         <task id="T2.1" name="梳理 Java FunctionLib/MemberFunction 缺口">
           <priority>P0</priority>
-          <status>TODO</status>
+          <status>DONE</status>
+          <acceptance_criteria>
+            <criterion id="T2.1-AC1" checked="true">IO gaps mapped: global connect; DB members query/execute/commit/rollback/proc/error/update/isolate/savepoint; file members read/write/export/import/name/exists/size/date/property/iselect; cursor members cursor/mcursor/fetch/skip/groupx/sortx/joinx/mergex/total; vdb members begin/commit/rollback/home/path/lock/list/load/date/save/move/read/write/update/saveblob/retrieve/archive/purge/copy.</criterion>
+            <criterion id="T2.1-AC2" checked="true">Table/record gaps mapped: record members field/fname/fno/key/record; table members keys/row/icursor/ifind/memory/paste/rename/alter/dup; sequence field/record variants noted for later parity.</criterion>
+            <criterion id="T2.1-AC3" checked="true">Minimal scope set for this track: implement connect + db.query/execute/commit/rollback and record field/fname/fno/key/record + table keys/row; remaining IO/table/cursor/vdb/file members deferred to later gaps list.</criterion>
+          </acceptance_criteria>
+          <references>
+            <ref>E:/infra-dev/src/esProc/src/main/java/com/scudata/expression/FunctionLib.java</ref>
+            <ref>E:/infra-dev/src/esProc/src/main/java/com/scudata/expression/mfn/record/FieldValue.java</ref>
+            <ref>E:/infra-dev/src/esProc/src/main/java/com/scudata/expression/mfn/record/FieldName.java</ref>
+            <ref>E:/infra-dev/src/esProc/src/main/java/com/scudata/expression/mfn/record/FieldNo.java</ref>
+            <ref>E:/infra-dev/src/esProc/src/main/java/com/scudata/expression/mfn/record/RecordValue.java</ref>
+            <ref>E:/infra-dev/src/esProc/src/main/java/com/scudata/expression/mfn/record/Key.java</ref>
+            <ref>E:/infra-dev/src/esProc/src/main/java/com/scudata/expression/mfn/table/Keys.java</ref>
+            <ref>E:/infra-dev/src/esProc/src/main/java/com/scudata/expression/mfn/TableRow.java</ref>
+            <ref>openspec/changes/migrate-esproc-dsl-syntax/java-analysis.md</ref>
+            <ref>packages/expression/src/memberRegistry.ts</ref>
+            <ref>packages/expression/src/functions.ts</ref>
+            <ref>packages/spl-dsl/src/index.ts</ref>
+          </references>
           <subtasks>
-            <subtask id="T2.1.1" name="从 FunctionLib 映射 IO 函数缺口" status="TODO" />
-            <subtask id="T2.1.2" name="从 MemberFunction 映射表/记录函数缺口" status="TODO" />
+            <subtask id="T2.1.1" name="从 FunctionLib 映射 IO 函数缺口" status="DONE" />
+            <subtask id="T2.1.2" name="从 MemberFunction 映射表/记录函数缺口" status="DONE" />
           </subtasks>
         </task>
         <task id="T2.2" name="实现 IO 相关函数">
