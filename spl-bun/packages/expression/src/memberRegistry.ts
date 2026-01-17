@@ -130,16 +130,17 @@ for (const [name, fn] of [
 
 function resolveFieldName(field?: unknown): string | null {
   if (typeof field === "string") return field;
-  if (typeof field === "number" && Number.isFinite(field)) return String(field);
   return null;
 }
 
-function resolveFieldIndex(record: Record<string, unknown>, field: unknown): string | null {
+function resolveFieldKey(record: Record<string, unknown>, field: unknown): string | null {
   if (typeof field === "number" && Number.isFinite(field)) {
-    const idx = Math.trunc(field) - 1;
-    if (idx < 0) return null;
     const keys = Object.keys(record);
-    return idx >= keys.length ? null : keys[idx];
+    const rawIndex = Math.trunc(field);
+    if (rawIndex === 0) return null;
+    const idx = rawIndex > 0 ? rawIndex - 1 : keys.length + rawIndex;
+    if (idx < 0 || idx >= keys.length) return null;
+    return keys[idx];
   }
   if (typeof field === "string") return field;
   return null;
@@ -147,7 +148,7 @@ function resolveFieldIndex(record: Record<string, unknown>, field: unknown): str
 
 // first/last
 
-defaultMemberRegistry.add(
+ defaultMemberRegistry.add(
   "first",
   (target) => isArray(target) || isDataSetLike(target),
   (target) => {
@@ -156,7 +157,7 @@ defaultMemberRegistry.add(
   },
 );
 
-defaultMemberRegistry.add(
+ defaultMemberRegistry.add(
   "last",
   (target) => isArray(target) || isDataSetLike(target),
   (target) => {
@@ -197,6 +198,7 @@ for (const name of ["commit", "rollback"] as const) {
 }
 
 // record member functions
+
 defaultMemberRegistry.add(
   "field",
   (target) => isRecordLike(target),
@@ -205,7 +207,7 @@ defaultMemberRegistry.add(
     if (field === undefined) {
       throw new Error("field() requires field name or index");
     }
-    const resolved = resolveFieldIndex(record, field);
+    const resolved = resolveFieldKey(record, field);
     if (!resolved) return null;
     if (value === undefined) {
       return record[resolved];
@@ -241,7 +243,7 @@ defaultMemberRegistry.add(
   (target, field?: unknown) => {
     const record = target as Record<string, unknown>;
     if (field === undefined) return Object.keys(record).length;
-    const resolved = resolveFieldIndex(record, field);
+    const resolved = resolveFieldKey(record, field);
     if (!resolved) return null;
     const keys = Object.keys(record);
     const idx = keys.indexOf(resolved);
@@ -316,7 +318,11 @@ defaultMemberRegistry.add(
     const dataSet = target as { rows?: unknown[]; keys?: string[]; schema?: { name: string }[] };
     const rows = Array.isArray(dataSet.rows) ? dataSet.rows : [];
     if (key === undefined) return null;
-    const keys = resolveDataSetKeys(dataSet);
+    const keys = Array.isArray(dataSet.keys) && dataSet.keys.length > 0
+      ? dataSet.keys
+      : Array.isArray(dataSet.schema)
+        ? dataSet.schema.map((col) => col.name)
+        : [];
     if (keys.length === 0) {
       return rows.find((row) => row && isRecordLike(row) && Object.values(row).includes(key)) ?? null;
     }
