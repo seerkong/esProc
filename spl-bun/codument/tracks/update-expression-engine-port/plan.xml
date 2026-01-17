@@ -21,7 +21,7 @@
             <subtask id="T1.1.2" name="列出高级聚合缺口与对应用例" status="DONE" />
           </subtasks>
         </task>
-        <task id="T1.2" name="实现 regather/finish 生命周期">
+        <task id="T1.2" name="实现 regather/finish 生命周期" commit="f957f8cc2">
           <priority>P0</priority>
           <status>DONE</status>
           <subtasks>
