@@ -72,7 +72,7 @@
             <subtask id="T2.1.2" name="从 MemberFunction 映射表/记录函数缺口" status="DONE" />
           </subtasks>
         </task>
-        <task id="T2.2" name="实现 IO 相关函数">
+        <task id="T2.2" name="实现 IO 相关函数" commit="22663db34">
           <priority>P0</priority>
           <status>DONE</status>
           <acceptance_criteria>
