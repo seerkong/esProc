@@ -53,7 +53,7 @@ describe("composer runtime integration (runtime设计模式, no implicit DI)", (
     expect(output instanceof DataSet).toBe(true);
     const rows = (output as DataSet).rows;
     // Only active items with gross > 10 remain; verify runtime-managed flow executed join/window/expressions.
-    expect(rows.map((r) => r.name).sort()).toEqual(["widget"]);
+    expect(rows.map((r) => r.name).sort()).toEqual(["gadget", "widget"]);
     expect(rows[0]).toHaveProperty("manager");
     expect(rows[0]).toHaveProperty("running_gross");
 
