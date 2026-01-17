@@ -74,11 +74,11 @@
         </task>
         <task id="T2.2" name="实现 IO 相关函数" commit="22663db34">
           <priority>P0</priority>
-          <status>IN_PROGRESS</status>
+          <status>DONE</status>
           <acceptance_criteria>
             <criterion id="T2.2-AC1" checked="true">Expression builtins include connect() for name or driver/url, returning DB handles.</criterion>
-            <criterion id="T2.2-AC2" checked="false">DB member functions query/execute/commit/rollback resolve on DB handles with tests (deferred to connect DB handles to member registry).</criterion>
-            <criterion id="T2.2-AC3" checked="false">IO tests added and passing for connect + db member functions (deferred after registry wiring).</criterion>
+            <criterion id="T2.2-AC2" checked="true">DB member functions query/execute/commit/rollback resolve on DB handles with tests.</criterion>
+            <criterion id="T2.2-AC3" checked="true">IO tests added and passing for connect + db member functions.</criterion>
           </acceptance_criteria>
           <subtasks>
             <subtask id="T2.2.1" name="编写失败测试（IO 函数）" status="DONE" />
