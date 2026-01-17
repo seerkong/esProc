@@ -10,5 +10,5 @@
 
 | Track ID | 名称 | 状态 | 创建时间 |
 |----------|------|------|----------|
-| update-expression-engine-port | 继续迁移 Expression 引擎（聚合生命周期 + IO/表函数） | new | 2026-01-17 |
+| update-expression-engine-port | 继续迁移 Expression 引擎（聚合生命周期 + IO/表函数） | in_progress | 2026-01-17 |
 
