@@ -33,6 +33,24 @@ function numericArray(arg: unknown): number[] {
   return arg.map((v) => toNumber(v)).filter((v) => !Number.isNaN(v));
 }
 
+function asNumericArray(value: unknown): number[] {
+  if (Array.isArray(value)) return numericArray(value);
+  if (value == null) return [];
+  const num = toNumber(value);
+  return Number.isNaN(num) ? [] : [num];
+}
+
+function compileMapper(expr: string): (item: unknown) => unknown {
+  const { compileExpression } = require("./evaluator") as typeof import("./evaluator");
+  const compiled = compileExpression(expr);
+  return (item: unknown) => {
+    if (item && typeof item === "object") {
+      return compiled.evaluate({ ...(item as Record<string, unknown>) });
+    }
+    return compiled.evaluate({ _: item });
+  };
+}
+
 export const builtins: FunctionRegistry = {
   abs: (v: unknown) => Math.abs(toNumber(v)),
   pow: (a: unknown, b: unknown) => Math.pow(toNumber(a), toNumber(b)),
@@ -166,21 +184,45 @@ export const builtins: FunctionRegistry = {
     return d.toISOString();
   },
   sum: (arr: unknown) => {
-    const values = numericArray(arr);
+    const values = asNumericArray(arr);
     return values.reduce((acc, v) => acc + v, 0);
   },
   avg: (arr: unknown) => {
-    const values = numericArray(arr);
+    const values = asNumericArray(arr);
     const res = average(values);
     return res ?? null;
   },
   min: (arr: unknown) => {
-    const values = numericArray(arr);
+    const values = asNumericArray(arr);
     return values.length === 0 ? null : Math.min(...values);
   },
   max: (arr: unknown) => {
-    const values = numericArray(arr);
+    const values = asNumericArray(arr);
     return values.length === 0 ? null : Math.max(...values);
+  },
+  median: (arr: unknown) => {
+    const values = asNumericArray(arr);
+    if (values.length === 0) return null;
+    values.sort((a, b) => a - b);
+    const mid = Math.floor(values.length / 2);
+    if (values.length % 2 === 0) {
+      return (values[mid - 1] + values[mid]) / 2;
+    }
+    return values[mid];
+  },
+  top: (count: unknown, arr: unknown, expr?: unknown) => {
+    const take = Number(count);
+    if (!Number.isFinite(take) || take === 0) return Array.isArray(arr) ? [] : null;
+    const items = Array.isArray(arr) ? [...arr] : arr == null ? [] : [arr];
+    const mapper = typeof expr === "string" && expr.length > 0
+      ? compileMapper(expr)
+      : (item: unknown) => item;
+    const sorted = items
+      .map((item) => ({ item, value: Number(mapper(item)) }))
+      .filter((entry) => !Number.isNaN(entry.value))
+      .sort((a, b) => a.value - b.value);
+    const picked = sorted.slice(-Math.abs(take)).map((entry) => entry.item);
+    return Math.abs(take) === 1 ? (picked[0] ?? null) : picked;
   },
   range: (start: unknown, end: unknown) => {
     const s = Number(start);

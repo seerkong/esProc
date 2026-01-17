@@ -1,5 +1,5 @@
 import { compileExpression, truthy } from "@esproc/expression";
-import { AvgGather, CountGather, SumGather, runGather, type GatherFunction } from "./gather";
+import { AvgGather, CountGather, MedianGather, SumGather, TopGather, runGather, type GatherFunction } from "./gather";
 
 export type Value = unknown;
 export type Row = Record<string, Value>;
@@ -15,7 +15,7 @@ export interface AggregateSpec {
 }
 
 export type GatherSpec = {
-  [name: string]: { type: "sum" | "count" | "avg"; field?: string };
+  [name: string]: { type: "sum" | "count" | "avg" | "median" | "top"; field?: string; count?: number };
 };
 
 
@@ -143,16 +143,31 @@ export class DataSet {
   }
 
   aggregateWithGather(spec: GatherSpec): DataSet {
-    const rows = [
-      Object.fromEntries(
-        Object.entries(spec).map(([name, cfg]) => {
-          const gather = createGather(cfg);
-          return [name, runGather(gather, this.rows)];
-        }),
-      ),
-    ];
-    const schema: ColumnSchema[] = Object.keys(spec).map((name) => ({ name, type: "number" }));
-    return new DataSet(schema, rows);
+    const aggregators = Object.entries(spec).map(([name, cfg]) => ({ name, gather: createGather(cfg) }));
+    const firstPass = Object.fromEntries(
+      aggregators.map(({ name, gather }) => [name, runGather(gather, this.rows)]),
+    );
+
+    const regatherEntries = aggregators
+      .map(({ name, gather }) => {
+        const expr = gather.regatherExpression(name);
+        return expr ? [name, expr] : null;
+      })
+      .filter((entry): entry is [string, string] => entry !== null);
+
+    if (regatherEntries.length === 0) {
+      const schema: ColumnSchema[] = Object.keys(spec).map((name) => ({ name, type: "number" }));
+      return new DataSet(schema, [firstPass]);
+    }
+
+    const regatherScope = { ...firstPass } as Record<string, unknown>;
+    const regathered = Object.fromEntries(
+      regatherEntries.map(([name, expr]) => [name, compileExpression(expr).evaluate(regatherScope)]),
+    );
+
+    const finalRow = { ...firstPass, ...regathered };
+    const schema: ColumnSchema[] = Object.keys(finalRow).map((name) => ({ name, type: "number" }));
+    return new DataSet(schema, [finalRow]);
   }
 
 
@@ -290,7 +305,7 @@ export class DataSet {
   }
 }
 
-function createGather(cfg: { type: "sum" | "count" | "avg"; field?: string }): GatherFunction {
+function createGather(cfg: { type: "sum" | "count" | "avg" | "median" | "top"; field?: string; count?: number }): GatherFunction {
   switch (cfg.type) {
     case "sum":
       return new SumGather(cfg.field);
@@ -298,6 +313,10 @@ function createGather(cfg: { type: "sum" | "count" | "avg"; field?: string }): G
       return new CountGather();
     case "avg":
       return new AvgGather(cfg.field);
+    case "median":
+      return new MedianGather(cfg.field);
+    case "top":
+      return new TopGather(cfg.field, cfg.count);
     default:
       throw new Error(`Unknown gather type: ${cfg.type}`);
   }

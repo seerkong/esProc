@@ -75,6 +75,8 @@ describe("expression parser and evaluator", () => {
     expect(evaluateExpression("nvl(name, \"unknown\")", scope)).toBe("unknown");
     expect(evaluateExpression("sum(nums)", scope)).toBe(6);
     expect(evaluateExpression("avg(nums)", scope)).toBeCloseTo(2);
+    expect(evaluateExpression("median(nums)", scope)).toBe(2);
+    expect(evaluateExpression("top(2, nums)", scope)).toEqual([2, 3]);
   });
 
   test("datetime helpers", () => {

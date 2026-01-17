@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DataSet, unsupportedOperation } from "../src";
+import { AvgGather, DataSet, SumGather, runGather, unsupportedOperation } from "../src";
 
 describe("DataSet operations", () => {
   const rows = [
@@ -15,7 +15,7 @@ describe("DataSet operations", () => {
   });
 
   test("filter narrows rows", () => {
-    const ds = DataSet.fromRows(rows).filter((r) => r.value >= 10);
+    const ds = DataSet.fromRows(rows).filter((r) => Number(r.value) >= 10);
     expect(ds.rows.length).toBe(2);
     expect(ds.rows.map((r) => r.id)).toEqual([1, 2]);
   });
@@ -44,6 +44,24 @@ describe("DataSet operations", () => {
     });
     expect(aggregated.rows[0]).toEqual({ total: 32, avgVal: 32 / 3, count: 3 });
   });
+
+  test("runGather supports regather/finish style aggregation", () => {
+    const ds = DataSet.fromRows(rows);
+    const sumGather = new SumGather("value");
+    const avgGather = new AvgGather("value");
+
+    const firstPassSum = runGather(sumGather, ds.rows);
+    const firstPassAvg = runGather(avgGather, ds.rows) as number;
+    const secondPassSum = runGather(sumGather, [
+      { value: firstPassSum },
+      { value: firstPassSum },
+    ]);
+
+    expect(firstPassAvg).toBeCloseTo(32 / 3);
+    expect(secondPassSum).toBe(64);
+  });
+
+
 
   test("unsupported operations are rejected", () => {
     expect(() => unsupportedOperation("join")).toThrow(/Unsupported operator/);
