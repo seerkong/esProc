@@ -15,10 +15,10 @@
       <tasks>
         <task id="T1.1" name="梳理 Java 聚合生命周期与缺口清单">
           <priority>P0</priority>
-          <status>TODO</status>
+          <status>DONE</status>
           <subtasks>
-            <subtask id="T1.1.1" name="定位 Java regather/finish 语义与触发条件" status="TODO" />
-            <subtask id="T1.1.2" name="列出高级聚合缺口与对应用例" status="TODO" />
+            <subtask id="T1.1.1" name="定位 Java regather/finish 语义与触发条件" status="DONE" />
+            <subtask id="T1.1.2" name="列出高级聚合缺口与对应用例" status="DONE" />
           </subtasks>
         </task>
         <task id="T1.2" name="实现 regather/finish 生命周期">
