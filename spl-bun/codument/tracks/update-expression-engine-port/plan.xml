@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plan>
+  <metadata>
+    <track_id>update-expression-engine-port</track_id>
+    <track_name>继续迁移 Expression 引擎（聚合生命周期 + IO/表函数）</track_name>
+    <goal>补齐聚合生命周期与 IO/表函数缺口，并完善测试与差异追踪</goal>
+    <created_at>2026-01-17</created_at>
+    <status>new</status>
+    <commit_mode>auto</commit_mode>
+  </metadata>
+
+  <phases>
+    <phase id="P1" name="聚合生命周期与高级聚合">
+      <goal>补齐 regather/finish 与高级聚合缺口</goal>
+      <tasks>
+        <task id="T1.1" name="梳理 Java 聚合生命周期与缺口清单">
+          <priority>P0</priority>
+          <status>TODO</status>
+          <subtasks>
+            <subtask id="T1.1.1" name="定位 Java regather/finish 语义与触发条件" status="TODO" />
+            <subtask id="T1.1.2" name="列出高级聚合缺口与对应用例" status="TODO" />
+          </subtasks>
+        </task>
+        <task id="T1.2" name="实现 regather/finish 生命周期">
+          <priority>P0</priority>
+          <status>TODO</status>
+          <subtasks>
+            <subtask id="T1.2.1" name="编写失败测试（聚合多阶段）" status="TODO" />
+            <subtask id="T1.2.2" name="实现 regather/finish 逻辑" status="TODO" />
+            <subtask id="T1.2.3" name="运行测试并修复" status="TODO" />
+          </subtasks>
+        </task>
+        <task id="T1.3" name="实现高级聚合缺口">
+          <priority>P1</priority>
+          <status>TODO</status>
+          <subtasks>
+            <subtask id="T1.3.1" name="编写失败测试（高级聚合）" status="TODO" />
+            <subtask id="T1.3.2" name="实现高级聚合函数/行为" status="TODO" />
+            <subtask id="T1.3.3" name="运行测试并修复" status="TODO" />
+          </subtasks>
+        </task>
+      </tasks>
+    </phase>
+
+    <phase id="P2" name="IO 与表/记录函数">
+      <goal>补齐 IO（DB/File/Cursor）与表/记录成员函数缺口</goal>
+      <tasks>
+        <task id="T2.1" name="梳理 Java FunctionLib/MemberFunction 缺口">
+          <priority>P0</priority>
+          <status>TODO</status>
+          <subtasks>
+            <subtask id="T2.1.1" name="从 FunctionLib 映射 IO 函数缺口" status="TODO" />
+            <subtask id="T2.1.2" name="从 MemberFunction 映射表/记录函数缺口" status="TODO" />
+          </subtasks>
+        </task>
+        <task id="T2.2" name="实现 IO 相关函数">
+          <priority>P0</priority>
+          <status>TODO</status>
+          <subtasks>
+            <subtask id="T2.2.1" name="编写失败测试（IO 函数）" status="TODO" />
+            <subtask id="T2.2.2" name="实现 IO 函数与类型支持" status="TODO" />
+            <subtask id="T2.2.3" name="运行测试并修复" status="TODO" />
+          </subtasks>
+        </task>
+        <task id="T2.3" name="实现表/记录成员函数">
+          <priority>P1</priority>
+          <status>TODO</status>
+          <subtasks>
+            <subtask id="T2.3.1" name="编写失败测试（表/记录函数）" status="TODO" />
+            <subtask id="T2.3.2" name="实现表/记录成员函数" status="TODO" />
+            <subtask id="T2.3.3" name="运行测试并修复" status="TODO" />
+          </subtasks>
+        </task>
+      </tasks>
+    </phase>
+
+    <phase id="P3" name="验证与差异追踪">
+      <goal>补充测试与更新差异文档，追加新缺口</goal>
+      <tasks>
+        <task id="T3.1" name="补充单元与集成测试">
+          <priority>P0</priority>
+          <status>TODO</status>
+          <subtasks>
+            <subtask id="T3.1.1" name="完善 expression 单元测试" status="TODO" />
+            <subtask id="T3.1.2" name="完善 core 集成测试" status="TODO" />
+          </subtasks>
+        </task>
+        <task id="T3.2" name="运行测试与覆盖率">
+          <priority>P0</priority>
+          <status>TODO</status>
+          <subtasks>
+            <subtask id="T3.2.1" name="运行 bun test 与覆盖率" status="TODO" />
+            <subtask id="T3.2.2" name="修复失败用例" status="TODO" />
+          </subtasks>
+        </task>
+        <task id="T3.3" name="差异文档与新缺口">
+          <priority>P0</priority>
+          <status>TODO</status>
+          <subtasks>
+            <subtask id="T3.3.1" name="生成 act_2 diff 文档（yyyyMMdd_HHmm）" status="TODO" />
+            <subtask id="T3.3.2" name="生成 act_2 summary 文档（yyyyMMdd_HHmm）" status="TODO" />
+            <subtask id="T3.3.3" name="将新缺口追加到 plan.xml" status="TODO" />
+          </subtasks>
+        </task>
+      </tasks>
+    </phase>
+  </phases>
+</plan>

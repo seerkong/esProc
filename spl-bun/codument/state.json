@@ -1,0 +1,13 @@
+{
+  "active_track": null,
+  "current_phase": null,
+  "current_task": null,
+  "last_action": "init",
+  "timestamp": "2026-01-17T08:13:44.795Z",
+  "commit_mode": "manual",
+  "cli_tools": [
+    "eidolon",
+    "opencode"
+  ],
+  "last_successful_step": "2.1_project"
+}
