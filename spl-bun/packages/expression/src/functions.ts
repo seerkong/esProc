@@ -1,4 +1,5 @@
-import { assertArity, isNullish, truthy } from "./utils";
+import { makeDbHandle } from "./types";
+import { isNullish, truthy } from "./utils";
 
 export type FunctionRegistry = Record<string, (...args: unknown[]) => unknown>;
 
@@ -274,6 +275,21 @@ export const builtins: FunctionRegistry = {
     }
     const { casep } = require("./paramFunctions") as typeof import("./paramFunctions");
     return casep(rawParams, scope as Record<string, unknown>);
+  },
+  connect: (name?: unknown, url?: unknown): unknown => {
+    if (name === undefined) {
+      throw new Error("connect() requires at least 1 argument");
+    }
+    if (url !== undefined) {
+      if (typeof name !== "string" || typeof url !== "string") {
+        throw new Error("connect(driver, url) expects string arguments");
+      }
+      return makeDbHandle({ driver: name, url, type: "jdbc" });
+    }
+    if (typeof name !== "string") {
+      throw new Error("connect(name) expects a string argument");
+    }
+    return makeDbHandle({ name });
   },
 };
 

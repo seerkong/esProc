@@ -226,17 +226,18 @@ export function parseExpression(source: string): ExpressionNode {
         }
         const propTok = current();
         consume();
-        if (match("paren", "(")) {
-          const args: ExpressionNode[] = [];
-          if (!match("paren", ")")) {
-            do {
-              args.push(parseOr());
-            } while (match("comma"));
+          if (match("paren", "(")) {
+            const args: ExpressionNode[] = [];
             if (!match("paren", ")")) {
-              throw new Error(`Expected ')' at position ${current().position}`);
+              do {
+                args.push(parseOr());
+              } while (match("operator", ","));
+              if (!match("paren", ")")) {
+                throw new Error(`Expected ')' at position ${current().position}`);
+              }
             }
-          }
-          node = { type: "member_call", object: node, method: propTok.value!, args };
+            node = { type: "member_call", object: node, method: propTok.value!, args };
+
         } else {
           node = { type: "member", object: node, property: propTok.value! };
         }

@@ -74,11 +74,16 @@
         </task>
         <task id="T2.2" name="实现 IO 相关函数">
           <priority>P0</priority>
-          <status>TODO</status>
+          <status>DONE</status>
+          <acceptance_criteria>
+            <criterion id="T2.2-AC1" checked="true">Expression builtins include connect() for name or driver/url, returning DB handles.</criterion>
+            <criterion id="T2.2-AC2" checked="true">DB member functions query/execute/commit/rollback resolve on DB handles with tests.</criterion>
+            <criterion id="T2.2-AC3" checked="true">IO tests added and passing for connect + db member functions.</criterion>
+          </acceptance_criteria>
           <subtasks>
-            <subtask id="T2.2.1" name="编写失败测试（IO 函数）" status="TODO" />
-            <subtask id="T2.2.2" name="实现 IO 函数与类型支持" status="TODO" />
-            <subtask id="T2.2.3" name="运行测试并修复" status="TODO" />
+            <subtask id="T2.2.1" name="编写失败测试（IO 函数）" status="DONE" />
+            <subtask id="T2.2.2" name="实现 IO 函数与类型支持" status="DONE" />
+            <subtask id="T2.2.3" name="运行测试并修复" status="DONE" />
           </subtasks>
         </task>
         <task id="T2.3" name="实现表/记录成员函数">

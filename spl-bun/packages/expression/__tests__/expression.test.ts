@@ -1,4 +1,4 @@
-import { compileExpression, evaluateExpression } from "../src/index";
+import { compileExpression, evaluateExpression, makeDbHandle } from "../src/index";
 
 const scope = { a: 2, b: 5, name: null, text: "Hello", nums: [1, 2, 3] };
 
@@ -104,5 +104,51 @@ describe("expression parser and evaluator", () => {
     const compiled = compileExpression("a * b + len(text)");
     expect(compiled.evaluate(scope)).toBe(15);
     expect(compiled.evaluate({ a: 1, b: 10, text: "abc" })).toBe(13);
+  });
+
+  test("db member functions via typed handle", () => {
+    const calls: Array<{ name: string; args: unknown[] }> = [];
+    const db = makeDbHandle({
+      query: (...args: unknown[]) => {
+        calls.push({ name: "query", args });
+        return { ok: true, args };
+      },
+      execute: (...args: unknown[]) => {
+        calls.push({ name: "execute", args });
+        return { ok: true, args };
+      },
+      commit: () => {
+        calls.push({ name: "commit", args: [] });
+        return "committed";
+      },
+      rollback: () => {
+        calls.push({ name: "rollback", args: [] });
+        return "rolled";
+      },
+    });
+
+    expect(evaluateExpression("db.query(\"select * from t where id = ?\", 7)", { db })).toEqual({
+      ok: true,
+      args: ["select * from t where id = ?", 7],
+    });
+    expect(evaluateExpression("db.execute(\"update t set name = ?\", \"x\")", { db })).toEqual({
+      ok: true,
+      args: ["update t set name = ?", "x"],
+    });
+    expect(evaluateExpression("db.commit()", { db })).toBe("committed");
+    expect(evaluateExpression("db.rollback()", { db })).toBe("rolled");
+
+    expect(calls.map((call) => call.name)).toEqual(["query", "execute", "commit", "rollback"]);
+  });
+
+  test("connect builtins return db handles", () => {
+    const byName = evaluateExpression("connect('demo')", {});
+    expect(byName).toEqual({ __type: 1, value: { name: "demo" } });
+
+    const byJdbc = evaluateExpression("connect('org.sqlite.JDBC', 'jdbc:sqlite:demo.db')", {});
+    expect(byJdbc).toEqual({
+      __type: 1,
+      value: { driver: "org.sqlite.JDBC", url: "jdbc:sqlite:demo.db", type: "jdbc" },
+    });
   });
 });
