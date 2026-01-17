@@ -118,7 +118,7 @@
             <subtask id="T3.1.2" name="完善 core 集成测试" status="DONE" />
           </subtasks>
         </task>
-        <task id="T3.2" name="运行测试与覆盖率" commit="TODO">
+        <task id="T3.2" name="运行测试与覆盖率" commit="7fb951da4">
           <priority>P0</priority>
           <status>DONE</status>
           <acceptance_criteria>
@@ -130,7 +130,7 @@
             <subtask id="T3.2.2" name="修复失败用例" status="DONE" />
           </subtasks>
         </task>
-        <task id="T3.3" name="差异文档与新缺口" commit="TODO">
+        <task id="T3.3" name="差异文档与新缺口" commit="7fb951da4">
           <priority>P0</priority>
           <status>DONE</status>
           <acceptance_criteria>
