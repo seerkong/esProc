@@ -10,7 +10,6 @@
 
 | Track ID | 名称 | 状态 | 创建时间 |
 |----------|------|------|----------|
-
-| (none) | | | |
+| add-more-core-expression-demos-e2e | 为新增 Expression 核心能力添加 Web-IDE Demo 和 E2E 测试 | new | 2026-01-19 |
 
 

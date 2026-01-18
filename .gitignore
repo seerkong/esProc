@@ -9,6 +9,8 @@ testdata/
 tui-debug.log
 database
 target
+.tmp/
+.sisyphus
 
 # Logs
 logs
