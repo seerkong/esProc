@@ -80,13 +80,6 @@
             <subtask id="T4.1.3" name="运行 bun run build" status="DONE"/>
           </subtasks>
         </task>
-        <task id="T4.2" name="OpenSpec 验证">
-          <priority>P0</priority>
-          <status>DONE</status>
-          <subtasks>
-            <subtask id="T4.2.1" name="运行 openspec validate add-composer-package --strict" status="DONE"/>
-          </subtasks>
-        </task>
       </tasks>
     </phase>
   </phases>

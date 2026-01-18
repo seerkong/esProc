@@ -117,6 +117,7 @@ allowed-tools: All
 
    f. **完成任务：**
       - 更新 plan.xml 中任务状态为 `DONE`
+      - 在所属任务节点下，新增<changed-key-files>...</changed-key-files>, 记录本轮关键改动，便于后续恢复任务状态
       - **如果是 auto 模式：**
         ```bash
         git add .

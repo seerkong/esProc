@@ -74,17 +74,5 @@
       </tasks>
     </phase>
 
-    <phase id="P4" name="验证">
-      <goal>验证 OpenSpec 变更</goal>
-      <tasks>
-        <task id="T4.1" name="OpenSpec 验证">
-          <priority>P0</priority>
-          <status>DONE</status>
-          <subtasks>
-            <subtask id="T4.1.1" name="运行 openspec validate port-expression-engine --strict" status="DONE"/>
-          </subtasks>
-        </task>
-      </tasks>
-    </phase>
   </phases>
 </plan>

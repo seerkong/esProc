@@ -62,7 +62,7 @@
             <ref>E:/infra-dev/src/esProc/src/main/java/com/scudata/expression/mfn/record/Key.java</ref>
             <ref>E:/infra-dev/src/esProc/src/main/java/com/scudata/expression/mfn/table/Keys.java</ref>
             <ref>E:/infra-dev/src/esProc/src/main/java/com/scudata/expression/mfn/TableRow.java</ref>
-            <ref>openspec/changes/migrate-esproc-dsl-syntax/java-analysis.md</ref>
+            <ref>migrate-esproc-dsl-syntax/java-analysis.md</ref>
             <ref>packages/expression/src/memberRegistry.ts</ref>
             <ref>packages/expression/src/functions.ts</ref>
             <ref>packages/spl-flow/src/index.ts</ref>
