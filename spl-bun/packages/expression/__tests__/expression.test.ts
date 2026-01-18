@@ -1,4 +1,4 @@
-import { compileExpression, evaluateExpression, makeDbHandle } from "../src/index";
+import { compileExpression, evaluateExpression, makeDbHandle, makeFileHandle, makeCursorHandle } from "../src/index";
 
 const scope = { a: 2, b: 5, name: null, text: "Hello", nums: [1, 2, 3] };
 
@@ -150,6 +150,127 @@ describe("expression parser and evaluator", () => {
       __type: 1,
       value: { driver: "org.sqlite.JDBC", url: "jdbc:sqlite:demo.db", type: "jdbc" },
     });
+
+    const bySqlite = evaluateExpression("connect('sqlite', 'demo.db')", {});
+    expect(bySqlite).toEqual({
+      __type: 1,
+      value: { driver: "sqlite", url: "demo.db", type: "jdbc" },
+    });
+  });
+
+  test("file member functions", () => {
+    const calls: Array<{ name: string; args: unknown[] }> = [];
+    const file = makeFileHandle({
+      read: (...args: unknown[]) => {
+        calls.push({ name: "read", args });
+        return "payload";
+      },
+      write: (...args: unknown[]) => {
+        calls.push({ name: "write", args });
+        return 3;
+      },
+      import: (...args: unknown[]) => {
+        calls.push({ name: "import", args });
+        return { rows: [{ id: 1 }], schema: [{ name: "id" }] };
+      },
+      export: (...args: unknown[]) => {
+        calls.push({ name: "export", args });
+        return true;
+      },
+    });
+
+    expect(evaluateExpression("file.read()", { file })).toBe("payload");
+    expect(evaluateExpression("file.write({ a: 1 })", { file })).toBe(3);
+    expect(evaluateExpression("file.import()", { file })).toEqual({
+      rows: [{ id: 1 }],
+      schema: [{ name: "id" }],
+    });
+    expect(evaluateExpression("file.export({ rows: [] })", { file })).toBe(true);
+    expect(calls.map((call) => call.name)).toEqual(["read", "write", "import", "export"]);
+  });
+
+  test("cursor member functions", () => {
+    const calls: Array<{ name: string; args: unknown[] }> = [];
+    const cursor = makeCursorHandle({
+      fetch: (...args: unknown[]) => {
+        calls.push({ name: "fetch", args });
+        return [{ id: 1 }];
+      },
+      skip: (...args: unknown[]) => {
+        calls.push({ name: "skip", args });
+        return 2;
+      },
+    });
+
+    expect(evaluateExpression("cursor.fetch(1)", { cursor })).toEqual([{ id: 1 }]);
+    expect(evaluateExpression("cursor.skip(2)", { cursor })).toBe(2);
+    expect(calls.map((call) => call.name)).toEqual(["fetch", "skip"]);
+  });
+
+  test("json and parse conversions", () => {
+    expect(evaluateExpression("json_parse('{\"a\":1}')", {})).toEqual({ a: 1 });
+    expect(evaluateExpression("json('{\"a\":1}')", {})).toEqual({ a: 1 });
+    expect(evaluateExpression("json_stringify({ a: 1 })", {})).toBe("{\"a\":1}");
+    expect(evaluateExpression("json({ a: 1 })", {})).toBe("{\"a\":1}");
+    expect(evaluateExpression("parse('42')", {})).toBe(42);
+  });
+
+  test("count and icount aggregations", () => {
+    expect(evaluateExpression("count(null)", {})).toBe(0);
+    expect(evaluateExpression("count(1)", {})).toBe(1);
+    expect(evaluateExpression("count(0)", {})).toBe(0);
+    expect(evaluateExpression("count('', 'a')", {})).toBe(1);
+    expect(evaluateExpression("icount([1, 1, 2, null])", {})).toBe(2);
+    expect(evaluateExpression("icount([true, false, true])", {})).toBe(1);
+  });
+
+  test("sequence member functions", () => {
+    const table = {
+      rows: [
+        { id: 1, category: "a", amount: 10 },
+        { id: 2, category: "b", amount: 5 },
+        { id: 3, category: "a", amount: 20 },
+      ],
+      keys: ["id"],
+      schema: [{ name: "id" }, { name: "category" }, { name: "amount" }],
+    };
+    const right = {
+      rows: [
+        { id: 1, name: "alpha" },
+        { id: 3, name: "gamma" },
+      ],
+      schema: [{ name: "id" }, { name: "name" }],
+    };
+
+    const selected = evaluateExpression("tab.select(\"amount > 10\")", { tab: table }) as {
+      rows: Array<{ id: number }>;
+    };
+    expect(selected.rows.map((row) => row.id)).toEqual([3]);
+
+    const sorted = evaluateExpression("tab.sort(\"amount\", \"desc\")", { tab: table }) as {
+      rows: Array<{ amount: number }>;
+    };
+    expect(sorted.rows.map((row) => row.amount)).toEqual([20, 10, 5]);
+
+    const derived = evaluateExpression("tab.derive({ gross: \"amount * 1.1\" })", { tab: table }) as {
+      rows: Array<{ gross: number }>;
+    };
+    expect(derived.rows.map((row) => row.gross)).toEqual([11, 5.5, 22]);
+
+    const grouped = evaluateExpression(
+      "tab.group({ groupBy: [\"category\"], aggregates: { total: { type: \"sum\", field: \"amount\" }, count: { type: \"count\" } } })",
+      { tab: table },
+    ) as { rows: Array<{ category: string; total: number; count: number }> };
+    expect(grouped.rows).toEqual([
+      { category: "a", total: 30, count: 2 },
+      { category: "b", total: 5, count: 1 },
+    ]);
+
+    const joined = evaluateExpression(
+      "tab.join(right, { type: \"left\", leftKeys: [\"id\"], rightKeys: [\"id\"], rightPrefix: \"r_\" })",
+      { tab: table, right },
+    ) as { rows: Array<{ id: number; name?: string }> };
+    expect(joined.rows.map((row) => row.name ?? null)).toEqual(["alpha", null, "gamma"]);
   });
 
   test("record/table member functions", () => {

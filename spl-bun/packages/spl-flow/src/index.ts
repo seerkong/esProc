@@ -1,4 +1,7 @@
 import { compileExpression, defaultMemberRegistry, makeDbHandle } from "@esproc/expression";
+import { ConnectionRegistry } from "./connection/registry";
+import { createDataSourceHandle } from "./connection/handle";
+import type { DataSourceConfig } from "./datasource/types";
 
 export type FlowStepKind = "expr" | "query";
 
@@ -41,6 +44,7 @@ export interface DBConnection {
 export interface FlowExecutionContext {
   scope?: Record<string, unknown>;
   connections?: Map<string, DBConnection>;
+  dataSourceConfigs?: DataSourceConfig[];
   defaultDbPath?: string;
   adapters?: {
     sqliteQuery?: (options: { connection?: DBConnection; dbPath?: string; sql: string; params?: unknown[] }) => unknown | Promise<unknown>;
@@ -82,6 +86,16 @@ function inferConnectionName(expression: string): string | null {
 }
 
 function ensureDbHandles(scope: Record<string, unknown>, ctx: FlowExecutionContext) {
+  if (ctx.dataSourceConfigs) {
+    const registry = new ConnectionRegistry();
+    for (const config of ctx.dataSourceConfigs) {
+      registry.register(config);
+      const dataSource = registry.get(config.name);
+      if (dataSource) {
+        scope[config.name] = createDataSourceHandle(dataSource);
+      }
+    }
+  }
   if (!ctx.connections) return;
   for (const [name, connection] of ctx.connections.entries()) {
     if (!(name in scope)) {
@@ -223,21 +237,25 @@ export async function evaluateFlow(
       const compiled = qValue === null
         ? compileExpression(expression, undefined, defaultMemberRegistry)
         : null;
-      const value = qValue === null ? compiled!.evaluate(scope) : qValue;
-      scope[ref] = value;
+        let value = qValue === null ? compiled!.evaluate(scope) : qValue;
+        if (value instanceof Promise) {
+          value = await value;
+        }
+        scope[ref] = value;
 
-      if (value && typeof value === "object" && "columns" in value && "rows" in value) {
-        lastQuery = value;
-      }
+        if (value && typeof value === "object" && "columns" in value && "rows" in value) {
+          lastQuery = value;
+        }
 
-      evaluations.push({
-        row,
-        col,
-        expr: expression,
-        status: "ok",
-        result: value,
-      });
-    } catch (error) {
+        evaluations.push({
+          row,
+          col,
+          expr: expression,
+          status: "ok",
+          result: value,
+        });
+      } catch (error) {
+
       const message = error instanceof Error ? error.message : String(error);
       evaluations.push({
         row,
@@ -254,6 +272,16 @@ export async function evaluateFlow(
 
 export function buildFlowScope(ctx: FlowExecutionContext): Record<string, unknown> {
   const scope: Record<string, unknown> = {};
+  if (ctx.dataSourceConfigs) {
+    const registry = new ConnectionRegistry();
+    for (const config of ctx.dataSourceConfigs) {
+      registry.register(config);
+      const dataSource = registry.get(config.name);
+      if (dataSource) {
+        scope[config.name] = createDataSourceHandle(dataSource);
+      }
+    }
+  }
   if (ctx.connections) {
     for (const [name, connection] of ctx.connections.entries()) {
       scope[name] = createDbHandle(connection, ctx);
@@ -261,3 +289,7 @@ export function buildFlowScope(ctx: FlowExecutionContext): Record<string, unknow
   }
   return scope;
 }
+
+export type { DataSourceConfig, SqliteConfig, CsvConfig, JsonConfig } from "./datasource/types";
+export { ConnectionRegistry } from "./connection/registry";
+export { createDataSourceHandle } from "./connection/handle";

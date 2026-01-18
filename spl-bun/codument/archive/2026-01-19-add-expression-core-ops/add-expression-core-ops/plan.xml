@@ -5,7 +5,7 @@
     <track_name>Expression Phase 1 核心能力（序列/文件/游标 + JSON/Parse + count/icount + spl-flow 数据源）</track_name>
     <goal>补齐核心成员函数与转换/聚合缺口，并支持 spl-flow 多数据源连接与测试覆盖</goal>
     <created_at>2026-01-18</created_at>
-    <status>in_progress</status>
+    <status>completed</status>
     <commit_mode>auto</commit_mode>
   </metadata>
 
@@ -75,48 +75,68 @@
       <tasks>
         <task id="T2.1" name="实现序列成员函数 select/sort/group/join/derive">
           <priority>P0</priority>
-          <status>IN_PROGRESS</status>
+          <status>DONE</status>
           <subtasks>
-            <subtask id="T2.1.1" name="编写失败测试（sequence member ops）" status="IN_PROGRESS" />
-            <subtask id="T2.1.2" name="实现 member registry 映射与核心逻辑" status="TODO" />
-            <subtask id="T2.1.3" name="运行测试并修复" status="TODO" />
+            <subtask id="T2.1.1" name="编写失败测试（sequence member ops）" status="DONE" />
+            <subtask id="T2.1.2" name="实现 member registry 映射与核心逻辑" status="DONE" />
+            <subtask id="T2.1.3" name="运行测试并修复" status="DONE" />
           </subtasks>
+          <changed-key-files>
+            <file>packages/expression/__tests__/expression.test.ts</file>
+            <file>packages/expression/src/memberRegistry.ts</file>
+          </changed-key-files>
         </task>
         <task id="T2.2" name="实现文件成员函数 read/write/import/export (CSV/JSON)">
           <priority>P0</priority>
-          <status>TODO</status>
+          <status>DONE</status>
           <subtasks>
-            <subtask id="T2.2.1" name="编写失败测试（file member ops）" status="TODO" />
-            <subtask id="T2.2.2" name="实现 file member ops 逻辑" status="TODO" />
-            <subtask id="T2.2.3" name="运行测试并修复" status="TODO" />
+            <subtask id="T2.2.1" name="编写失败测试（file member ops）" status="DONE" />
+            <subtask id="T2.2.2" name="实现 file member ops 逻辑" status="DONE" />
+            <subtask id="T2.2.3" name="运行测试并修复" status="DONE" />
           </subtasks>
+          <changed-key-files>
+            <file>packages/expression/__tests__/expression.test.ts</file>
+            <file>packages/expression/src/memberRegistry.ts</file>
+          </changed-key-files>
         </task>
         <task id="T2.3" name="实现游标成员函数 fetch/skip">
           <priority>P0</priority>
-          <status>TODO</status>
+          <status>DONE</status>
           <subtasks>
-            <subtask id="T2.3.1" name="编写失败测试（cursor ops）" status="TODO" />
-            <subtask id="T2.3.2" name="实现 cursor ops 逻辑" status="TODO" />
-            <subtask id="T2.3.3" name="运行测试并修复" status="TODO" />
+            <subtask id="T2.3.1" name="编写失败测试（cursor ops）" status="DONE" />
+            <subtask id="T2.3.2" name="实现 cursor ops 逻辑" status="DONE" />
+            <subtask id="T2.3.3" name="运行测试并修复" status="DONE" />
           </subtasks>
+          <changed-key-files>
+            <file>packages/expression/__tests__/expression.test.ts</file>
+            <file>packages/expression/src/memberRegistry.ts</file>
+          </changed-key-files>
         </task>
         <task id="T2.4" name="实现 json/parse 与 json_parse/json_stringify">
           <priority>P0</priority>
-          <status>TODO</status>
+          <status>DONE</status>
           <subtasks>
-            <subtask id="T2.4.1" name="编写失败测试（json/parse）" status="TODO" />
-            <subtask id="T2.4.2" name="实现转换函数与兼容入口" status="TODO" />
-            <subtask id="T2.4.3" name="运行测试并修复" status="TODO" />
+            <subtask id="T2.4.1" name="编写失败测试（json/parse）" status="DONE" />
+            <subtask id="T2.4.2" name="实现转换函数与兼容入口" status="DONE" />
+            <subtask id="T2.4.3" name="运行测试并修复" status="DONE" />
           </subtasks>
+          <changed-key-files>
+            <file>packages/expression/__tests__/expression.test.ts</file>
+            <file>packages/expression/src/functions.ts</file>
+          </changed-key-files>
         </task>
         <task id="T2.5" name="实现 count/icount 聚合函数">
           <priority>P0</priority>
-          <status>TODO</status>
+          <status>DONE</status>
           <subtasks>
-            <subtask id="T2.5.1" name="编写失败测试（count/icount）" status="TODO" />
-            <subtask id="T2.5.2" name="实现 count/icount 逻辑" status="TODO" />
-            <subtask id="T2.5.3" name="运行测试并修复" status="TODO" />
+            <subtask id="T2.5.1" name="编写失败测试（count/icount）" status="DONE" />
+            <subtask id="T2.5.2" name="实现 count/icount 逻辑" status="DONE" />
+            <subtask id="T2.5.3" name="运行测试并修复" status="DONE" />
           </subtasks>
+          <changed-key-files>
+            <file>packages/expression/__tests__/expression.test.ts</file>
+            <file>packages/expression/src/functions.ts</file>
+          </changed-key-files>
         </task>
       </tasks>
     </phase>
@@ -126,27 +146,46 @@
       <tasks>
         <task id="T3.1" name="新增 datasource/connection 基础设施">
           <priority>P0</priority>
-          <status>TODO</status>
+          <status>DONE</status>
           <subtasks>
-            <subtask id="T3.1.1" name="创建 datasource types/factory/sqlite/csv/json" status="TODO" />
-            <subtask id="T3.1.2" name="创建 connection registry/handle" status="TODO" />
+            <subtask id="T3.1.1" name="创建 datasource types/factory/sqlite/csv/json" status="DONE" />
+            <subtask id="T3.1.2" name="创建 connection registry/handle" status="DONE" />
           </subtasks>
+          <changed-key-files>
+            <file>packages/spl-flow/src/datasource/types.ts</file>
+            <file>packages/spl-flow/src/datasource/sqlite.ts</file>
+            <file>packages/spl-flow/src/datasource/csv.ts</file>
+            <file>packages/spl-flow/src/datasource/json.ts</file>
+            <file>packages/spl-flow/src/datasource/factory.ts</file>
+            <file>packages/spl-flow/src/connection/registry.ts</file>
+            <file>packages/spl-flow/src/connection/handle.ts</file>
+          </changed-key-files>
         </task>
         <task id="T3.2" name="FlowExecutionContext 支持 dataSourceConfigs">
           <priority>P0</priority>
-          <status>TODO</status>
+          <status>DONE</status>
           <subtasks>
-            <subtask id="T3.2.1" name="更新 context 接口与 scope 构建" status="TODO" />
-            <subtask id="T3.2.2" name="保持 connections/adapters 兼容" status="TODO" />
+            <subtask id="T3.2.1" name="更新 context 接口与 scope 构建" status="DONE" />
+            <subtask id="T3.2.2" name="保持 connections/adapters 兼容" status="DONE" />
           </subtasks>
+          <changed-key-files>
+            <file>packages/spl-flow/src/index.ts</file>
+          </changed-key-files>
         </task>
         <task id="T3.3" name="spl-flow 测试与示例">
           <priority>P1</priority>
-          <status>TODO</status>
+          <status>DONE</status>
           <subtasks>
-            <subtask id="T3.3.1" name="添加 datasource/connection 单元测试" status="TODO" />
-            <subtask id="T3.3.2" name="添加多数据源集成测试" status="TODO" />
+            <subtask id="T3.3.1" name="添加 datasource/connection 单元测试" status="DONE" />
+            <subtask id="T3.3.2" name="添加多数据源集成测试" status="DONE" />
           </subtasks>
+          <changed-key-files>
+            <file>packages/spl-flow/__tests__/datasource/factory.test.ts</file>
+            <file>packages/spl-flow/__tests__/datasource/sqlite.test.ts</file>
+            <file>packages/spl-flow/__tests__/datasource/csv.test.ts</file>
+            <file>packages/spl-flow/__tests__/datasource/json.test.ts</file>
+            <file>packages/spl-flow/__tests__/datasource/connections.test.ts</file>
+          </changed-key-files>
         </task>
       </tasks>
     </phase>
@@ -156,20 +195,27 @@
       <tasks>
         <task id="T4.1" name="运行测试与覆盖率">
           <priority>P0</priority>
-          <status>TODO</status>
+          <status>DONE</status>
           <subtasks>
-            <subtask id="T4.1.1" name="运行 bun test 与覆盖率" status="TODO" />
-            <subtask id="T4.1.2" name="修复失败用例" status="TODO" />
+            <subtask id="T4.1.1" name="运行 bun test 与覆盖率" status="DONE" />
+            <subtask id="T4.1.2" name="修复失败用例" status="DONE" />
           </subtasks>
+          <notes>
+            <note>运行 `bun test`（71 tests）通过；仓库未配置覆盖率脚本。</note>
+          </notes>
         </task>
         <task id="T4.2" name="更新差异文档与缺口记录">
           <priority>P0</priority>
-          <status>TODO</status>
+          <status>DONE</status>
           <subtasks>
-            <subtask id="T4.2.1" name="生成 act_4 diff/summary（如需要）" status="TODO" />
-            <subtask id="T4.2.2" name="将新缺口追加到 plan.xml" status="TODO" />
+            <subtask id="T4.2.1" name="生成 act_4 diff/summary（如需要）" status="DONE" />
+            <subtask id="T4.2.2" name="将新缺口追加到 plan.xml" status="DONE" />
           </subtasks>
-          <confirm protocol="yield-human-confirm" when="after" />
+          <confirm protocol="yield-human-confirm" when="after" status="DONE" />
+          <notes>
+            <note>act_4 差异文档已更新：新增序列/文件/游标成员函数与 json/parse、count/icount 覆盖；调整缺口统计。</note>
+            <note>新增缺口：解析器仍不支持分号/冒号参数语法（group/join 高级参数需后续扩展）。</note>
+          </notes>
         </task>
       </tasks>
     </phase>

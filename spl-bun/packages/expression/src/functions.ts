@@ -52,6 +52,91 @@ function compileMapper(expr: string): (item: unknown) => unknown {
   };
 }
 
+function parseOptions(options: unknown): Set<string> {
+  if (typeof options !== "string") return new Set();
+  return new Set(options.toLowerCase().split(""));
+}
+
+function jsonParse(value: unknown, options?: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const opts = parseOptions(options);
+  if (opts.has("v")) {
+    const { compileExpression } = require("./evaluator") as typeof import("./evaluator");
+    return compileExpression(value).evaluate({});
+  }
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function jsonStringify(value: unknown): string | null {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return null;
+  }
+}
+
+function parseLiteral(value: unknown, options?: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const opts = parseOptions(options);
+  let raw = value;
+  if (opts.has("q")) {
+    const match = raw.match(/"([\s\S]*)"|'([\s\S]*)'/);
+    if (match) {
+      raw = match[1] ?? match[2] ?? raw;
+    }
+  }
+  if (opts.has("e")) {
+    raw = raw.replace(/\\u([0-9a-fA-F]{4})/g, (_, code) => String.fromCharCode(Number.parseInt(code, 16)));
+    if ((raw.startsWith("\"") && raw.endsWith("\"")) || (raw.startsWith("'") && raw.endsWith("'"))) {
+      raw = raw.slice(1, -1);
+    }
+  }
+  if (opts.has("n")) {
+    const num = Number(raw);
+    return Number.isNaN(num) ? raw : num;
+  }
+  if (/^\s*-?\d+(\.\d+)?\s*$/.test(raw)) {
+    const num = Number(raw);
+    return Number.isNaN(num) ? raw : num;
+  }
+  return raw;
+}
+
+function jsonCompat(value: unknown, options?: unknown): unknown {
+  if (typeof value === "string") {
+    return jsonParse(value, options);
+  }
+  if (Array.isArray(value)) {
+    return jsonStringify(value);
+  }
+  if (value && typeof value === "object") {
+    return jsonStringify(value);
+  }
+  return value;
+}
+
+function countValues(...args: unknown[]): number {
+  return args.reduce((acc, value) => (truthy(value) ? acc + 1 : acc), 0);
+}
+
+function icountValues(values: unknown[]): number {
+  const seen = new Set<string>();
+  let count = 0;
+  for (const value of values) {
+    if (!truthy(value)) continue;
+    const key = JSON.stringify(value) ?? String(value);
+    if (!seen.has(key)) {
+      seen.add(key);
+      count += 1;
+    }
+  }
+  return count;
+}
+
 export const builtins: FunctionRegistry = {
   abs: (v: unknown) => Math.abs(toNumber(v)),
   pow: (a: unknown, b: unknown) => Math.pow(toNumber(a), toNumber(b)),
@@ -117,6 +202,15 @@ export const builtins: FunctionRegistry = {
   },
   concat: (...args: unknown[]) => args.map((v) => (v == null ? "" : String(v))).join(""),
   nvl: (value: unknown, fallback: unknown) => (isNullish(value) ? fallback : value),
+  json_parse: (value: unknown, options?: unknown) => jsonParse(value, options),
+  json_stringify: (value: unknown) => jsonStringify(value),
+  json: (value: unknown, options?: unknown) => jsonCompat(value, options),
+  parse: (value: unknown, options?: unknown) => parseLiteral(value, options),
+  count: (...args: unknown[]) => countValues(...args),
+  icount: (value: unknown) => {
+    if (!Array.isArray(value)) return truthy(value) ? 1 : 0;
+    return icountValues(value);
+  },
   now: () => new Date(),
   date: (str: unknown) => toDate(str),
   dateadd: (value: unknown, days: unknown) => {

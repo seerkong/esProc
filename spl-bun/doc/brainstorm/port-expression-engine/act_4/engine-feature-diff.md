@@ -7,13 +7,17 @@ This document compares the Java expression engine implementation (E:\infra-dev\s
 
 **TypeScript Implementation Status:**
 - ✅ Core expression parsing and evaluation
-- ✅ Basic built-in functions (~40 functions)
-- ✅ Basic member functions (~20 functions)
+- ✅ Expanded built-in functions (~56 functions, incl. json/parse and count/icount)
+- ✅ Expanded member functions (~30 functions)
 - ✅ Database connection support (connect, query, execute, commit, rollback)
 - ✅ Aggregation lifecycle (gather/regather/finish)
 - ✅ Advanced aggregations (median, top)
 - ✅ Record/table member functions (field, fname, fno, key, record, keys, row)
+- ✅ Sequence member functions (select, sort, group, join, derive)
+- ✅ File member functions (read, write, import, export)
+- ✅ Cursor member functions (fetch, skip)
 - ⚠️ Limited compared to Java's 150+ built-in functions and 200+ member functions
+
 
 **Java Implementation Scope:**
 - 150+ built-in functions across 10+ categories
@@ -36,8 +40,8 @@ This document compares the Java expression engine implementation (E:\infra-dev\s
 #### Date/Time Functions (13 functions)
 - `now`, `date`, `dateadd`, `month`, `day`, `year`, `hour`, `minute`, `second`, `datevalue`, `datetime`, `datediff`, `format`
 
-#### Aggregation Functions (5 functions)
-- `sum`, `avg`, `min`, `max`, `median`, `top`, `range`
+#### Aggregation Functions (9 functions)
+- `sum`, `avg`, `min`, `max`, `median`, `top`, `range`, `count`, `icount`
 
 #### Control Flow (4 functions)
 - `if`, `case`, `ifp`, `casep`
@@ -48,7 +52,11 @@ This document compares the Java expression engine implementation (E:\infra-dev\s
 #### Utility (1 function)
 - `nvl`
 
-**Total TypeScript: ~48 built-in functions**
+#### Conversion Functions (4 functions)
+- `json`, `parse`, `json_parse`, `json_stringify`
+
+**Total TypeScript: ~56 built-in functions**
+
 
 ---
 
@@ -97,19 +105,18 @@ This document compares the Java expression engine implementation (E:\infra-dev\s
 - `md5` - MD5 hashing
 - `aes`, `des`, `desede`, `rsa` - Encryption functions
 
-#### Type Conversion Functions (20+ missing)
+#### Type Conversion Functions (18+ missing)
 - `bool`, `int`, `long`, `float`, `number` - Numeric conversions
 - `string` - To string
 - `decimal` - To BigDecimal
 - `char`, `asc` - Character conversion
 - `rgb` - RGB color
 - `chn` - Chinese conversion
-- `parse` - Parse string
-- `json` - JSON conversion
 - `xml` - XML conversion
 - `typeof` - Type checking
 - `isalpha`, `isdigit`, `islower`, `isupper` - Character type checks
 - `ifv`, `ifa`, `ifr`, `ift`, `ifdate`, `iftime`, `ifnumber`, `ifstring` - Type-specific conversions
+
 
 #### Algebra Functions (21 missing)
 - `var` - Variance
@@ -138,14 +145,14 @@ This document compares the Java expression engine implementation (E:\infra-dev\s
 - `itx`, `addx`, `subx`, `cmpx` - Extended date operations
 - `millisecond` - Millisecond component
 
-#### Aggregation Functions (10+ missing)
+#### Aggregation Functions (8+ missing)
 - `maxp`, `minp` - Position-based max/min
-- `count`, `icount` - Counting
 - `mode` - Mode calculation
 - `conj`, `union` - Set operations
 - `rank`, `ranki` - Ranking
 - `cum` - Cumulative operations
 - `iterate` - Iteration with aggregation
+
 
 #### Sequence/Collection Functions (10+ missing)
 - `seq` - Sequence creation
@@ -202,6 +209,15 @@ This document compares the Java expression engine implementation (E:\infra-dev\s
 - `first()`, `last()` - Element access
 - `calc()` - Map expression over items
 
+#### Sequence Methods (5 functions)
+- `select()`, `sort()`, `group()`, `join()`, `derive()`
+
+#### File Methods (4 functions)
+- `read()`, `write()`, `import()`, `export()`
+
+#### Cursor Methods (2 functions)
+- `fetch()`, `skip()`
+
 #### Record Methods (5 functions)
 - `field(name, [value])` - Get/set field
 - `fname([index])` - Get field names
@@ -218,7 +234,9 @@ This document compares the Java expression engine implementation (E:\infra-dev\s
 - `execute(sql, ...)` - Execute statement
 - `commit()`, `rollback()` - Transaction control
 
-**Total TypeScript: ~19 member functions**
+**Total TypeScript: ~30 member functions**
+
+
 
 ---
 
@@ -308,9 +326,7 @@ This document compares the Java expression engine implementation (E:\infra-dev\s
 - `alter` - Alter structure
 - `index` - Index operations
 
-#### File Member Functions (20+ missing)
-- `read`, `write` - Read/write
-- `export`, `import` - Export/import
+#### File Member Functions (16+ missing)
 - `name` - File name
 - `exists` - File exists
 - `size` - File size
@@ -323,6 +339,7 @@ This document compares the Java expression engine implementation (E:\infra-dev\s
 - `query` - Query file
 - `structure` - File structure
 
+
 #### Database Member Functions (6+ missing)
 - `proc` - Stored procedure
 - `update` - Update data
@@ -331,9 +348,7 @@ This document compares the Java expression engine implementation (E:\infra-dev\s
 - `savepoint` - Savepoint
 - `createcursor` - Create cursor
 
-#### Cursor Member Functions (15+ missing)
-- `fetch` - Fetch rows
-- `skip` - Skip rows
+#### Cursor Member Functions (13+ missing)
 - `groups`, `groupx` - Grouping
 - `sortx` - Sort
 - `joinx` - Join
@@ -345,6 +360,7 @@ This document compares the Java expression engine implementation (E:\infra-dev\s
 - `memory` - Memory cursor
 - `createcursor` - Create cursor
 - `mcursor` - Memory cursor
+
 
 #### Channel Member Functions (8 missing)
 - `fetch` - Fetch data
@@ -453,11 +469,13 @@ This document compares the Java expression engine implementation (E:\infra-dev\s
 ### 4.2 Missing from TypeScript ❌
 
 - ❌ Parallel operations (pselect, psort, pjoin, etc.)
-- ❌ Cursor operations (fetch, skip, groups, sortx, etc.)
+- ❌ Cursor operations (groups, sortx, joinx, etc.)
+
 - ❌ Channel operations (streaming data channels)
 - ❌ Virtual database (VDB) abstraction
 - ❌ Excel integration (XLS import/export/manipulation)
-- ❌ File-based data sources (CSV, JSON query support)
+- ❌ File-based data sources (CSV/JSON query support beyond read/write/import/export)
+
 - ❌ HTML/SQL parsing utilities
 - ❌ Complex join types (foreign key, parallel, multi-join)
 - ❌ Cuboid operations (OLAP-style)
@@ -517,10 +535,11 @@ From `doc\brainstorm\port-expression-engine\act_2\summary_20260117_2135.md`:
 ## 7. Implementation Recommendations
 
 ### Phase 1: Core Data Operations (High Priority)
-- Implement sequence member functions: select, sort, group, join, derive
-- Add file member functions: read, write, import, export
-- Add type conversion functions: json, xml, parse
-- Implement cursor basic operations: fetch, skip
+- ✅ Implement sequence member functions: select, sort, group, join, derive
+- ✅ Add file member functions: read, write, import, export
+- ✅ Add type conversion functions: json, parse (xml still missing)
+- ✅ Implement cursor basic operations: fetch, skip
+
 
 ### Phase 2: Enhanced Functionality (Medium Priority)
 - Add string operations: like, regex, split
@@ -541,12 +560,13 @@ From `doc\brainstorm\port-expression-engine\act_2\summary_20260117_2135.md`:
 
 | Category | Java | TypeScript | Gap |
 |----------|------|------------|-----|
-| Built-in Functions | 150+ | 48 | 102+ |
-| Member Functions | 200+ | 19 | 181+ |
+| Built-in Functions | 150+ | 56 | 94+ |
+| Member Functions | 200+ | 30 | 170+ |
 | Operators | 40+ | 25 | 15+ |
-| **Total** | **390+** | **92** | **298+** |
+| **Total** | **390+** | **111** | **279+** |
 
-**Coverage:** TypeScript has implemented approximately **24%** of Java's expression engine functionality.
+**Coverage:** TypeScript has implemented approximately **28%** of Java's expression engine functionality.
+
 
 **Core Strengths (TypeScript):**
 - Solid foundation with parsing, evaluation, and type system
@@ -555,12 +575,13 @@ From `doc\brainstorm\port-expression-engine\act_2\summary_20260117_2135.md`:
 - Extensible architecture
 
 **Major Gaps:**
-- Sequence/collection operations (select, sort, group, join)
-- File-based data source operations
-- Cursor and channel operations
-- Type conversion (JSON, XML)
+- Sequence/collection operations beyond select/sort/group/join (e.g., top/find/lookup)
+- File-based data source operations beyond read/write/import/export
+- Cursor and channel operations beyond fetch/skip
+- Type conversion (XML and remaining conversions)
 - Advanced math and string operations
 - Virtual database and Excel integration
+
 
 ---
 

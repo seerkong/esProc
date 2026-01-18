@@ -10,5 +10,7 @@
 
 | Track ID | 名称 | 状态 | 创建时间 |
 |----------|------|------|----------|
-| add-expression-core-ops | Expression Phase 1 核心能力（序列/文件/游标 + JSON/Parse + count/icount + spl-flow 数据源） | in_progress | 2026-01-18 |
+
+| (none) | | | |
+
 
