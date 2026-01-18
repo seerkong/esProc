@@ -17,7 +17,7 @@ export const apiRoutes = {
 
 /**
  * Request payload for /api/execute
- * Array of SPL expressions to evaluate
+ * Object containing the flow definition
  */
 export interface ExecuteExpression {
   row: number;
@@ -25,7 +25,9 @@ export interface ExecuteExpression {
   expr: string;
 }
 
-export type ExecuteRequest = ExecuteExpression[];
+export interface ExecuteRequest {
+  flowDef: ExecuteExpression[];
+}
 
 /**
  * Query result data with columns and rows
@@ -35,13 +37,12 @@ export interface QueryResultData {
   rows: Record<string, unknown>[];
 }
 
-export interface ExecuteStepResult {
-  expression: string;
+export interface ExecuteCellResult {
   row: number;
   col: string;
+  expr: string;
   status: "ok" | "error";
-  data?: QueryResultData;
-  value?: unknown;
+  result?: unknown;
   error?: string;
 }
 
@@ -49,8 +50,8 @@ export interface ExecuteStepResult {
  * Response payload for /api/execute
  */
 export type ExecuteResponse =
-  | { status: "ok"; data?: QueryResultData; steps: ExecuteStepResult[] }
-  | { status: "error"; error: string; steps?: ExecuteStepResult[] };
+  | { status: "ok"; data?: QueryResultData; cells: ExecuteCellResult[] }
+  | { status: "error"; error: string; cells?: ExecuteCellResult[] };
 
 // Database connection metadata shared across services
 export interface DBConnection {

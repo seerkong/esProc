@@ -21,11 +21,82 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4176
 const univerContainerRef = ref<HTMLDivElement>();
 const agGridContainerRef = ref<HTMLDivElement>();
 
+type DemoCell = {
+  row: number;
+  col: string;
+  expr: string;
+};
+
+const CELL_COL_A_CODE = "A".charCodeAt(0);
+
+type Demo = {
+  id: string;
+  label: string;
+  description: string;
+  cells: DemoCell[];
+};
+
+const demos: Demo[] = [
+  {
+    id: "states-base",
+    label: "US States (A1)",
+    description: "A1 query only",
+    cells: [
+      { row: 1, col: "A", expr: 'demo.query("select * from STATES")' },
+    ],
+  },
+  {
+    id: "states-max-pop",
+    label: "Largest state population",
+    description: "A1 query, A2 max population, A3 lookup",
+    cells: [
+      { row: 1, col: "A", expr: 'demo.query("select NAME, POPULATION from STATES order by POPULATION desc limit 10")' },
+      { row: 2, col: "A", expr: 'A1.first().field("POPULATION")' },
+      { row: 3, col: "A", expr: 'demo.query("select NAME, POPULATION from STATES where POPULATION = ?", A2)' },
+    ],
+  },
+  {
+    id: "region-drilldown",
+    label: "Region drilldown",
+    description: "A1 query, A2 region id, A3 region filter",
+    cells: [
+      { row: 1, col: "A", expr: 'demo.query("select NAME, REGIONID, POPULATION from STATES order by POPULATION desc limit 20")' },
+      { row: 2, col: "A", expr: 'A1.first().field("REGIONID")' },
+      { row: 3, col: "A", expr: 'demo.query("select NAME, POPULATION from STATES where REGIONID = ? order by POPULATION desc limit 10", A2)' },
+    ],
+  },
+  {
+    id: "area-children",
+    label: "Area children",
+    description: "A1 root areas, A2 pick parent, A3 children",
+    cells: [
+      { row: 1, col: "A", expr: 'demo.query("select AREAID, AREANAME, FATHER from AREA where FATHER = 0 order by AREAID")' },
+      { row: 2, col: "A", expr: 'A1.first().field("AREAID")' },
+      { row: 3, col: "A", expr: 'demo.query("select AREAID, AREANAME from AREA where FATHER = ? order by AREAID", A2)' },
+    ],
+  },
+  {
+    id: "crud-demo",
+    label: "CRUD sandbox",
+    description: "Create/update/delete then query",
+    cells: [
+      { row: 1, col: "A", expr: 'demo.execute("drop table if exists DEMO_TMP")' },
+      { row: 2, col: "A", expr: 'demo.execute("create table DEMO_TMP (id int, name varchar(30), region int)")' },
+      { row: 3, col: "A", expr: 'demo.execute("insert into DEMO_TMP values (1, \'North\', 1), (2, \'South\', 2), (3, \'West\', 3)")' },
+      { row: 4, col: "A", expr: 'demo.execute("update DEMO_TMP set name = \'North-East\' where id = 1")' },
+      { row: 5, col: "A", expr: 'demo.execute("delete from DEMO_TMP where id = 2")' },
+      { row: 6, col: "A", expr: 'demo.query("select * from DEMO_TMP order by id")' },
+    ],
+  },
+];
+
 const status = ref<string>("Idle");
+const selectedDemoId = ref<string>(demos[0].id);
 
 let univerAPI: FUniver | null = null;
 let workbook: FWorkbook | null = null;
 let gridApi: GridApi | null = null;
+
 
 onMounted(() => {
   if (!univerContainerRef.value) return;
@@ -98,12 +169,11 @@ onUnmounted(() => {
  * Returns an array of strings
  */
 function collectColumnA(): ExecuteRequest {
-  if (!workbook) return [];
+  const flowDef: ExecuteRequest["flowDef"] = [];
+  if (!workbook) return { flowDef };
 
   const sheet = workbook.getActiveSheet();
-  if (!sheet) return [];
-
-  const expressions: ExecuteRequest = [];
+  if (!sheet) return { flowDef };
 
   // Scan column A (column index 0) for non-empty cells
   for (let r = 0; r < 20; r++) {
@@ -111,11 +181,11 @@ function collectColumnA(): ExecuteRequest {
     const val = range?.getValue();
 
     if (val !== undefined && val !== null && val !== "") {
-      expressions.push({ row: r + 1, col: "A", expr: String(val) });
+      flowDef.push({ row: r + 1, col: "A", expr: String(val) });
     }
   }
 
-  return expressions;
+  return { flowDef };
 }
 
 /**
@@ -125,14 +195,14 @@ async function runSheet() {
   status.value = "Running...";
 
   try {
-    const expressions: ExecuteRequest = collectColumnA();
+    const payload: ExecuteRequest = collectColumnA();
 
-    if (expressions.length === 0) {
+    if (payload.flowDef.length === 0) {
       status.value = "No expressions to evaluate";
       return;
     }
 
-    console.log("[SPL-IDE] Sending expressions to backend:", expressions);
+    console.log("[SPL-IDE] Sending expressions to backend:", payload);
 
     // Send expressions to backend using shared API routes
     const response = await fetch(`${API_BASE_URL}${apiRoutes.execute}`, {
@@ -140,8 +210,9 @@ async function runSheet() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(expressions),
+      body: JSON.stringify(payload),
     });
+
 
     if (!response.ok) {
       throw new Error(`Server error: ${response.status} ${response.statusText}`);
@@ -216,6 +287,41 @@ function resetSheet() {
 
   status.value = "Idle";
 }
+
+function loadDemo() {
+  if (!workbook) return;
+
+  const sheet = workbook.getActiveSheet();
+  if (!sheet) return;
+
+  // Clear 20x8 grid similar to resetSheet
+  for (let r = 0; r < 20; r++) {
+    for (let c = 0; c < 8; c++) {
+      sheet.getRange(r, c)?.setValue("");
+    }
+  }
+
+  const demo = demos.find((d) => d.id === selectedDemoId.value);
+  if (!demo) return;
+
+  // Write demo cells into sheet
+  demo.cells.forEach((cell) => {
+    const rowIndex = cell.row - 1;
+    const colIndex = cell.col.toUpperCase().charCodeAt(0) - CELL_COL_A_CODE;
+    if (rowIndex >= 0 && colIndex >= 0) {
+      sheet.getRange(rowIndex, colIndex)?.setValue(cell.expr);
+    }
+  });
+
+  // Clear AG Grid view when loading a demo
+  if (gridApi) {
+    gridApi.setGridOption("columnDefs", []);
+    gridApi.setGridOption("rowData", []);
+  }
+
+  status.value = `Loaded: ${demo.label}`;
+}
+
 </script>
 
 <template>
@@ -223,8 +329,18 @@ function resetSheet() {
     <div class="toolbar">
       <button @click="runSheet">Run Sheet</button>
       <button class="reset-btn" @click="resetSheet">Reset Sheet</button>
+      <div class="demo-controls">
+        <label for="demoSelect">Load Demo</label>
+        <select id="demoSelect" v-model="selectedDemoId" @change="loadDemo">
+          <option v-for="demo in demos" :key="demo.id" :value="demo.id">
+            {{ demo.label }} - {{ demo.description }}
+          </option>
+        </select>
+        <button class="load-btn" @click="loadDemo">Load Demo</button>
+      </div>
       <span class="status">{{ status }}</span>
     </div>
+
 
     <div class="section">
       <div class="univer-container" ref="univerContainerRef"></div>
@@ -249,6 +365,7 @@ function resetSheet() {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .toolbar button {
@@ -260,6 +377,34 @@ function resetSheet() {
   cursor: pointer;
   font-size: 14px;
 }
+
+.demo-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.demo-controls select {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  background: white;
+  font-size: 14px;
+}
+
+.demo-controls .load-btn {
+  background: #1f2937;
+  padding: 6px 12px;
+}
+
+.demo-controls .load-btn:hover {
+  background: #111827;
+}
+
 
 .toolbar button:hover {
   background: #047857;

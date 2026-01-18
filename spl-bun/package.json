@@ -6,8 +6,14 @@
   "workspaces": ["packages/*"],
   "scripts": {
     "test": "bun test",
-    "build": "bun run --filter @esproc/expression build && bun run --filter @esproc/spl-dsl build && bun run --filter @esproc/core build && bun run --filter @esproc/sqlite-adapter build && bun run --filter @esproc/web-shared build && bun run --filter @esproc/composer build && bun run --filter @esproc/web-ide build && bun run --filter @esproc/web-server build && bun run --filter @esproc/test-utils build",
-    "web-ide:dev": "bun run scripts/web-ide-dev.ts"
+    "build": "bun run --filter @esproc/expression build && bun run --filter @esproc/spl-flow build && bun run --filter @esproc/core build && bun run --filter @esproc/sqlite-adapter build && bun run --filter @esproc/web-shared build && bun run --filter @esproc/composer build && bun run --filter @esproc/web-ide build && bun run --filter @esproc/web-server build && bun run --filter @esproc/test-utils build",
+    "cleanup": "bun run scripts/cleanup-dev-ports.ts",
+    "cleanup:frontend": "bun run scripts/cleanup-dev-ports.ts 4174 4175",
+    "cleanup:backend": "bun run scripts/cleanup-dev-ports.ts 4176",
+    "web-ide:dev": "bun run scripts/web-ide-dev.ts",
+    "dev:frontend": "bun run cleanup:frontend && bun run --filter @esproc/web-ide dev",
+    "dev:backend": "bun run cleanup:backend && bun run --filter @esproc/web-server dev",
+    "dev": "bun run cleanup && bun run dev:backend & bun run dev:frontend"
   },
   "devDependencies": {
     "bun-types": "latest",

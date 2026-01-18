@@ -1,5 +1,5 @@
 {
-  "name": "@esproc/composer",
+  "name": "@esproc/spl-flow",
   "version": "0.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -8,11 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@esproc/core": "workspace:*",
-    "@esproc/expression": "workspace:*",
-    "@esproc/spl-flow": "workspace:*",
-    "@esproc/sqlite-adapter": "workspace:*",
-    "@esproc/test-utils": "workspace:*"
+    "@esproc/expression": "workspace:*"
   },
   "scripts": {
     "build": "bun x tsc -p tsconfig.json"

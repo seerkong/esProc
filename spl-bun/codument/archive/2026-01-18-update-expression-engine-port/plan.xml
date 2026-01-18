@@ -5,7 +5,7 @@
     <track_name>继续迁移 Expression 引擎（聚合生命周期 + IO/表函数）</track_name>
     <goal>补齐聚合生命周期与 IO/表函数缺口，并完善测试与差异追踪</goal>
     <created_at>2026-01-17</created_at>
-    <status>new</status>
+    <status>archived</status>
     <commit_mode>auto</commit_mode>
   </metadata>
 
@@ -65,7 +65,7 @@
             <ref>openspec/changes/migrate-esproc-dsl-syntax/java-analysis.md</ref>
             <ref>packages/expression/src/memberRegistry.ts</ref>
             <ref>packages/expression/src/functions.ts</ref>
-            <ref>packages/spl-dsl/src/index.ts</ref>
+            <ref>packages/spl-flow/src/index.ts</ref>
           </references>
           <subtasks>
             <subtask id="T2.1.1" name="从 FunctionLib 映射 IO 函数缺口" status="DONE" />

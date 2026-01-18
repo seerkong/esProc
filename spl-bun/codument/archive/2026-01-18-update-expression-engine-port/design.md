@@ -20,7 +20,7 @@
 - 受影响的文件/模块：
   - `packages/expression/src/*`（函数库、成员函数、类型系统、评估器）
   - `packages/core/src/gather.ts`、`packages/core/src/dataset.ts`
-  - `packages/spl-dsl/src/index.ts`（如涉及 IO 解析/执行）
+  - `packages/spl-flow/src/index.ts`（如涉及 IO 解析/执行）
   - 测试与文档目录
 
 ## 决策

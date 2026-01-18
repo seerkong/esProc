@@ -17,9 +17,9 @@ import {
   type ExecuteRequest,
   type ExecuteResponse,
   type QueryResultData,
-  type ExecuteStepResult,
+  type ExecuteCellResult,
 } from "@esproc/web-shared";
-import { compileDSL, type DBConnection } from "@esproc/spl-dsl";
+import { buildFlowScope, evaluateFlow, type DBConnection } from "@esproc/spl-flow";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, "../data/demo.db");
@@ -75,6 +75,20 @@ function executeQuery(db: Database, sql: string, params?: unknown[]): QueryResul
   return { columns, rows };
 }
 
+function executeMutation(db: Database, sql: string, params?: unknown[]): { changes: number; lastInsertRowid: number | null } {
+  const stmt = db.prepare(sql);
+  const runner = stmt as unknown as { run: (...args: unknown[]) => { changes?: number; lastInsertRowid?: number | bigint } };
+  const result = runner.run(...(params ?? []));
+  const changes = typeof result.changes === "number" ? result.changes : 0;
+  let lastInsertRowid: number | null = null;
+  if (typeof result.lastInsertRowid === "number") {
+    lastInsertRowid = result.lastInsertRowid;
+  } else if (typeof result.lastInsertRowid === "bigint") {
+    lastInsertRowid = Number(result.lastInsertRowid);
+  }
+  return { changes, lastInsertRowid };
+}
+
 // Initialize database and connection registry
 const db = initDatabase();
 const connections = new Map<string, DBConnection>([
@@ -91,64 +105,68 @@ const app = new Elysia()
   )
   .get(apiRoutes.health, () => ({ status: "ok" }))
   .post(apiRoutes.execute, async ({ body }): Promise<ExecuteResponse> => {
-    const expressions = body as ExecuteRequest;
+    const payload = body as ExecuteRequest;
+    const expressions = payload?.flowDef ?? [];
     console.log("[Server] Received expressions:", expressions);
 
     if (!Array.isArray(expressions) || expressions.length === 0) {
       return { status: "error", error: "No expression provided" };
     }
 
-    const steps: ExecuteStepResult[] = [];
-    const scope: Record<string, unknown> = {};
-    let lastQueryResult: QueryResultData | undefined;
-
-    for (const item of expressions) {
-      const { expr: expression, row, col } = item ?? {};
-      const ref = `${String(col ?? "").toUpperCase()}${row ?? ""}`;
-
-      if (!expression) {
-        steps.push({ expression: "", row: row ?? -1, col: col ?? "", status: "error", error: "Empty expression" });
-        continue;
+    const executeAdapter = ({ connection, sql, params }: { connection?: DBConnection; sql: string; params?: unknown[] }) => {
+      const target = connection?.name ?? "demo";
+      const targetDb = databases.get(target);
+      if (!targetDb) {
+        throw new Error(`Connection '${target}' not found`);
       }
+      return executeQuery(targetDb, sql, params);
+    };
 
-      try {
-        const compiled = compileDSL(expression);
-        const value = await compiled.evaluate({
-          connections,
-          defaultDbPath: DB_PATH,
-          scope,
-          adapters: {
-            sqliteQuery: ({ connection, sql, params }) => {
-              const target = connection?.name ?? "demo";
-              const targetDb = databases.get(target);
-              if (!targetDb) {
-                throw new Error(`Connection '${target}' not found`);
-              }
-              return executeQuery(targetDb, sql, params);
-            },
-          },
-        });
-
-        console.log("[Server] Evaluated DSL node type:", compiled.node.type);
-
-        if (isQueryResult(value)) {
-          lastQueryResult = value;
-          scope[ref] = value;
-          steps.push({ expression, row, col, status: "ok", data: value });
-          console.log(`[Server] Query returned ${value.rows.length} rows, columns: ${value.columns.join(", ")}`);
-        } else {
-          scope[ref] = value;
-          steps.push({ expression, row, col, status: "ok", value });
-        }
-      } catch (err: any) {
-        console.error("[Server] Error:", err);
-        const errorMessage = err?.message ?? String(err);
-        steps.push({ expression, row, col, status: "error", error: errorMessage });
-        return { status: "error", error: errorMessage, steps };
+    const executeMutationAdapter = ({ connection, sql, params }: { connection?: DBConnection; sql: string; params?: unknown[] }) => {
+      const target = connection?.name ?? "demo";
+      const targetDb = databases.get(target);
+      if (!targetDb) {
+        throw new Error(`Connection '${target}' not found`);
       }
+      return executeMutation(targetDb, sql, params);
+    };
+
+    const baseScope = buildFlowScope({
+      connections,
+      defaultDbPath: DB_PATH,
+      adapters: {
+        sqliteQuery: executeAdapter,
+        sqliteExecute: executeMutationAdapter,
+      },
+    });
+
+    const { cells, lastQuery } = await evaluateFlow(expressions, {
+      connections,
+      defaultDbPath: DB_PATH,
+      scope: baseScope,
+      adapters: {
+        sqliteQuery: executeAdapter,
+        sqliteExecute: executeMutationAdapter,
+      },
+    });
+
+    const mappedCells: ExecuteCellResult[] = cells.map((cell) => ({
+      expr: cell.expr,
+      row: cell.row,
+      col: cell.col,
+      status: cell.status,
+      result: cell.result,
+      error: cell.error,
+    }));
+
+    const hasError = mappedCells.some((cell) => cell.status === "error");
+    if (hasError) {
+      const firstError = mappedCells.find((cell) => cell.status === "error");
+      return { status: "error", error: firstError?.error ?? "Unknown error", cells: mappedCells };
     }
 
-    return { status: "ok", data: lastQueryResult, steps };
+    const resultData = isQueryResult(lastQuery) ? (lastQuery as QueryResultData) : undefined;
+    return { status: "ok", data: resultData, cells: mappedCells };
   });
 
 // Start server

@@ -9,7 +9,7 @@
     "convert-demo": "bun run scripts/convert-demo.ts"
   },
   "dependencies": {
-    "@esproc/spl-dsl": "workspace:*",
+    "@esproc/spl-flow": "workspace:*",
     "@esproc/web-shared": "workspace:*",
     "@elysiajs/cors": "^1.0.0",
     "elysia": "^1.0.0"
