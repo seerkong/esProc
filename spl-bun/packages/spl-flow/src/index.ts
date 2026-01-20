@@ -1,7 +1,17 @@
-import { compileExpression, defaultMemberRegistry, makeDbHandle } from "@esproc/expression";
+import {
+  compileExpression,
+  defaultMemberRegistry,
+  FunctionRegistryBuilder,
+  makeDbHandle,
+  makeFileHandle,
+  type FunctionRegistry,
+} from "@esproc/expression";
 import { DataSet } from "@esproc/core";
+import { readFileSync } from "fs";
+import { extname, isAbsolute, resolve as resolvePath, sep } from "path";
 import { ConnectionRegistry } from "./connection/registry";
 import { createDataSourceHandle } from "./connection/handle";
+import { DataSourceFactory } from "./datasource/factory";
 import type { DataSourceConfig } from "./datasource/types";
 
 export type FlowStepKind = "expr" | "query";
@@ -47,6 +57,7 @@ export interface FlowExecutionContext {
   connections?: Map<string, DBConnection>;
   dataSourceConfigs?: DataSourceConfig[];
   defaultDbPath?: string;
+  workspaceRoot?: string;
   adapters?: {
     sqliteQuery?: (options: { connection?: DBConnection; dbPath?: string; sql: string; params?: unknown[] }) => unknown | Promise<unknown>;
     sqliteExecute?: (options: { connection?: DBConnection; dbPath?: string; sql: string; params?: unknown[] }) => unknown | Promise<unknown>;
@@ -75,6 +86,148 @@ type DataSetLike = {
   rows: Record<string, unknown>[];
   schema?: { name: string }[];
 };
+
+type ResolvedConnectArgs =
+  | { kind: "name"; name: string }
+  | { kind: "sqlite"; path: string };
+
+function getWorkspaceRoot(ctx: FlowExecutionContext): string {
+  const root = typeof ctx.workspaceRoot === "string" && ctx.workspaceRoot.trim().length > 0
+    ? ctx.workspaceRoot
+    : process.cwd();
+  return root;
+}
+
+function resolveWorkspacePath(input: string, ctx: FlowExecutionContext): string {
+  if (isAbsolute(input)) return input;
+  const root = getWorkspaceRoot(ctx);
+  const resolved = resolvePath(root, input);
+  const rootResolved = resolvePath(root);
+  const rootPrefix = rootResolved.endsWith(sep) ? rootResolved : rootResolved + sep;
+  if (resolved !== rootResolved && !resolved.startsWith(rootPrefix)) {
+    throw new Error("Path escapes workspace root");
+  }
+  return resolved;
+}
+
+function parseConnectArgs(nameOrType: unknown, maybePath: unknown): ResolvedConnectArgs {
+  if (typeof nameOrType !== "string" || nameOrType.trim().length === 0) {
+    throw new Error("connect() expects string arguments");
+  }
+  const first = nameOrType.trim();
+  if (maybePath === undefined) {
+    return { kind: "name", name: first };
+  }
+  if (typeof maybePath !== "string" || maybePath.trim().length === 0) {
+    throw new Error("connect(driver, url) expects string arguments");
+  }
+  const second = maybePath.trim();
+  const type = first.toLowerCase();
+  if (type !== "sqlite") {
+    throw new Error("Only connect(\"sqlite\", path) is supported in spl-flow runtime");
+  }
+  return { kind: "sqlite", path: second };
+}
+
+function parseCsvContent(content: string, delimiter: string = ","): { rows: Record<string, unknown>[]; schema: { name: string; type?: string }[] } {
+  const lines = content.split("\n").map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return { rows: [], schema: [] };
+  const rawCols = lines[0].split(delimiter).map((c) => c.trim());
+  const schema = rawCols.map((name) => ({ name, type: "unknown" }));
+  const rows: Record<string, unknown>[] = [];
+  for (const line of lines.slice(1)) {
+    const cells = line.split(delimiter).map((c) => c.trim());
+    const record: Record<string, unknown> = {};
+    rawCols.forEach((col, idx) => {
+      const v = cells[idx] ?? "";
+      const num = Number(v);
+      record[col] = v !== "" && !Number.isNaN(num) ? num : v;
+    });
+    rows.push(record);
+  }
+  return { rows, schema };
+}
+
+function makeRuntimeFunctions(ctx: FlowExecutionContext): FunctionRegistry {
+  const registry = new ConnectionRegistry();
+  for (const config of ctx.dataSourceConfigs ?? []) {
+    registry.register(config);
+  }
+
+  const connectFn = (nameOrType?: unknown, maybePath?: unknown): unknown => {
+    if (nameOrType === undefined) {
+      throw new Error("connect() requires at least 1 argument");
+    }
+    const parsed = parseConnectArgs(nameOrType, maybePath);
+
+    if (parsed.kind === "name") {
+      const name = parsed.name;
+      if (ctx.connections?.has(name)) {
+        return createDbHandle(resolveConnection(name, ctx), ctx);
+      }
+      const ds = registry.get(name);
+      if (ds) {
+        return createDataSourceHandle(ds);
+      }
+      throw new Error(`Connection '${name}' not found`);
+    }
+
+    const resolvedPath = resolveWorkspacePath(parsed.path, ctx);
+    const ds = DataSourceFactory.create({ type: "sqlite", name: "sqlite", path: resolvedPath });
+    return createDataSourceHandle(ds);
+  };
+
+  const fileFn = (path?: unknown): unknown => {
+    if (typeof path !== "string" || path.trim().length === 0) {
+      throw new Error("file() expects a path string");
+    }
+    const resolved = resolveWorkspacePath(path.trim(), ctx);
+    return makeFileHandle({
+      path: resolved,
+      read: () => readFileSync(resolved, "utf-8"),
+    });
+  };
+
+  const csvFn = (content?: unknown): unknown => {
+    if (typeof content !== "string") {
+      throw new Error("csv() expects CSV string content");
+    }
+    return parseCsvContent(content);
+  };
+
+  const tFn = (path?: unknown): unknown => {
+    if (typeof path !== "string" || path.trim().length === 0) {
+      throw new Error("T() expects a path string");
+    }
+    const resolved = resolveWorkspacePath(path.trim(), ctx);
+    const content = readFileSync(resolved, "utf-8");
+    const ext = extname(resolved).toLowerCase();
+    if (ext === ".csv") {
+      return parseCsvContent(content);
+    }
+    if (ext === ".json") {
+      const data = JSON.parse(content) as unknown;
+      if (Array.isArray(data)) {
+        return { rows: data as Record<string, unknown>[], schema: data.length > 0 && typeof data[0] === "object" && data[0] !== null
+          ? Object.keys(data[0] as Record<string, unknown>).map((name) => ({ name, type: "unknown" }))
+          : [] };
+      }
+      if (data && typeof data === "object") {
+        const rec = data as Record<string, unknown>;
+        return { rows: [rec], schema: Object.keys(rec).map((name) => ({ name, type: "unknown" })) };
+      }
+      return { rows: [], schema: [] };
+    }
+    throw new Error(`T() unsupported file type: ${ext || "(none)"}`);
+  };
+
+  return new FunctionRegistryBuilder()
+    .add("connect", connectFn)
+    .add("file", fileFn)
+    .add("csv", csvFn)
+    .add("t", tFn)
+    .build();
+}
 
 function toCellRef(row: number, col: string): string {
   return `${String(col).toUpperCase()}${row}`;
@@ -163,6 +316,10 @@ function createDbHandle(connection: DBConnection, ctx: FlowExecutionContext) {
   });
 }
 
+function resolveExpressionFunctions(ctx: FlowExecutionContext): FunctionRegistry {
+  return makeRuntimeFunctions(ctx);
+}
+
 function resolveQQuery(expression: string, ctx: FlowExecutionContext, scope: Record<string, unknown>) {
   if (!expression.trim().startsWith("$q(")) return null;
   const adapter = ctx.adapters?.sqliteQuery;
@@ -172,7 +329,7 @@ function resolveQQuery(expression: string, ctx: FlowExecutionContext, scope: Rec
   const match = expression.match(/^\s*\$q\((.*)\)\s*$/s);
   if (!match) return null;
   const inner = match[1];
-  const compiled = compileExpression(inner, undefined, defaultMemberRegistry);
+  const compiled = compileExpression(inner, resolveExpressionFunctions(ctx), defaultMemberRegistry);
   const argValue = compiled.evaluate(scope);
   const sql = typeof argValue === "string" ? argValue : null;
   if (!sql) {
@@ -211,6 +368,9 @@ export async function evaluateFlow(
   ctx: FlowExecutionContext,
 ): Promise<FlowEvaluationResult> {
   const scope: Record<string, unknown> = { ...(ctx.scope ?? {}) };
+  if (ctx.workspaceRoot === undefined) {
+    ctx.workspaceRoot = process.cwd();
+  }
   const evaluations: FlowCellEvaluation[] = [];
   let lastQuery: unknown;
 
@@ -260,8 +420,9 @@ export async function evaluateFlow(
       }
 
       const qValue = resolveQQuery(expression, ctx, scope);
+      const registry = resolveExpressionFunctions(ctx);
       const compiled = qValue === null
-        ? compileExpression(expression, undefined, defaultMemberRegistry)
+        ? compileExpression(expression, registry, defaultMemberRegistry)
         : null;
       let value = qValue === null ? compiled!.evaluate(scope) : qValue;
       if (value instanceof Promise) {
@@ -321,9 +482,10 @@ function isDataSetLike(value: unknown): value is DataSetLike {
 function toQueryResult(value: unknown): QueryResultData | null {
   if (isQueryResult(value)) return value;
   if (value instanceof DataSet) {
+    const ds = value as unknown as { schema: { name: string }[]; rows: Record<string, unknown>[] };
     return {
-      columns: value.schema.map((col) => col.name),
-      rows: value.rows,
+      columns: ds.schema.map((col: { name: string }) => col.name),
+      rows: ds.rows,
     };
   }
   if (Array.isArray(value)) {

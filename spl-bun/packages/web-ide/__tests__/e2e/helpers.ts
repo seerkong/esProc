@@ -48,17 +48,36 @@ export async function waitForDemoLoad(page: Page): Promise<void> {
  * Select a demo by its label text.
  */
 export async function selectDemo(page: Page, demoLabel: string): Promise<void> {
-  await page.selectOption("#demoSelect", { label: demoLabel });
+  const options = await page.locator("#demoSelect option").evaluateAll((opts) =>
+    opts.map((opt) => ({
+      value: (opt as HTMLOptionElement).value,
+      text: (opt.textContent ?? "").trim(),
+    }))
+  );
+
+  const match = options.find((opt) => opt.text === demoLabel || opt.text.startsWith(`${demoLabel} -`));
+  expect(match, `Demo option not found: ${demoLabel}`).toBeTruthy();
+
+  await page.selectOption("#demoSelect", { value: match!.value });
   await page.click(".demo-controls .load-btn");
   await expect(page.locator(".toolbar .status")).toContainText(demoLabel, { timeout: 10_000 });
 }
 
-/**
- * Run the active sheet and wait for completion status.
- */
-export async function runSheet(page: Page): Promise<void> {
+export async function runSheet(page: Page, expectStatus: "done" | "error" | "any" = "done"): Promise<string> {
   await page.click("button:has-text(\"Run Sheet\")");
-  await expect(page.locator(".toolbar .status")).toContainText("Done", { timeout: 15_000 });
+
+  const status = page.locator(".toolbar .status");
+  await expect
+    .poll(async () => (await status.textContent())?.trim() ?? "", { timeout: 15_000 })
+    .toMatch(/^(Done|Error:)/);
+
+  const text = (await status.textContent())?.trim() ?? "";
+  if (expectStatus === "done") {
+    expect(text).toContain("Done");
+  } else if (expectStatus === "error") {
+    expect(text).toContain("Error:");
+  }
+  return text;
 }
 
 /**

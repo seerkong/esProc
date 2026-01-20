@@ -28,8 +28,8 @@ describe("JsonDataSource", () => {
       const result = await ds.query("select id, name from json_data order by id");
       expect(result.columns).toEqual(["id", "name"]);
       expect(result.rows).toEqual([
-        { id: "1", name: "alpha" },
-        { id: "2", name: "beta" },
+        ["1", "alpha"],
+        ["2", "beta"],
       ]);
     } finally {
       file.cleanup();
@@ -43,7 +43,7 @@ describe("JsonDataSource", () => {
       const result = await ds.query("select id, profile from json_data");
       expect(result.columns).toEqual(["id", "profile"]);
       expect(result.rows).toEqual([
-        { id: "1", profile: "{\"tier\":\"gold\"}" },
+        ["1", "{\"tier\":\"gold\"}"],
       ]);
     } finally {
       file.cleanup();

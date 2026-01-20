@@ -8,6 +8,9 @@
 
   <!-- Phase 1: Demo Data Preparation -->
   <phase id="P1" name="Demo Data Preparation" status="TODO">
+    <notes>
+      <note>Requirement update (2026-01-20): demo file loading should use workspace-relative paths; ensure demo data files can be referenced from the workspace root (not just server __dirname paths).</note>
+    </notes>
     <description>Prepare CSV, JSON demo files and extend demo.db schema</description>
 
     <task id="T1.1" name="Create CSV demo files" priority="high" status="DONE">
@@ -78,6 +81,9 @@
   <!-- Phase 2: Web-Server Enhancement -->
   <phase id="P2" name="Web-Server Enhancement" status="TODO">
     <description>Migrate web-server to use dataSourceConfigs API for multi-datasource support</description>
+    <notes>
+      <note>Requirement update (2026-01-20): demos should not rely on implicit datasource injection; add/adjust connect()/T()/path resolution support in spl-flow/web-server so that demo expressions can explicitly connect and load files relative to workspace root.</note>
+    </notes>
 
     <task id="T2.1" name="Migrate server.ts to dataSourceConfigs" priority="high" status="DONE">
       <description>Update server.ts to use dataSourceConfigs instead of connections Map</description>
@@ -135,8 +141,14 @@
   <!-- Phase 3: Web-IDE Demo Implementation -->
   <phase id="P3" name="Web-IDE Demo Implementation" status="TODO">
     <description>Add demos to SplIde.vue showcasing new expression capabilities</description>
+    <notes>
+      <note>Additional requirement (2026-01-20): online IDE demos must explicitly connect and explicitly load file data (no implicit injection of db/files). See doc/brainstorm/port-expression-engine/act_5/summary1.md.</note>
+    </notes>
 
     <task id="T3.1" name="Add simple sequence operation demos" priority="high" status="IN_PROGRESS">
+      <notes>
+        <note>Requirement update: Each demo should start by explicitly connecting to a database (e.g., A1=connect("demo"); A2=db.query(...)). Do not rely on implicit DB handle injection.</note>
+      </notes>
       <description>Add demos for select and sort operations</description>
       <acceptance_criteria>
         <criterion checked="true">Sequence Select demo added showing data filtering</criterion>
@@ -186,6 +198,9 @@
 
     <task id="T3.3" name="Add file operation demos" priority="high" status="IN_PROGRESS">
       <description>Add demos for CSV and JSON file operations</description>
+      <notes>
+        <note>Requirement update (2026-01-20): CSV/JSON demos should load data via SPL-style T() or csv(file(...).read()) / json(file(...).read()) patterns, with non-absolute paths resolved from workspace root. Avoid implicit server-registered datasources for file reads.</note>
+      </notes>
       <acceptance_criteria>
         <criterion checked="true">CSV Import demo added showing file read</criterion>
         <criterion checked="true">JSON Processing demo added showing parse and transform</criterion>
@@ -217,6 +232,9 @@
 
     <task id="T3.4" name="Add cursor and multi-datasource demos" priority="high" status="IN_PROGRESS">
       <description>Add demos for cursor pagination and multi-datasource queries</description>
+      <notes>
+        <note>Requirement update: Multi-datasource demos must explicitly connect to required sources (DB + files) in the sheet before querying/using them.</note>
+      </notes>
       <acceptance_criteria>
         <criterion checked="true">Cursor Pagination demo added using fetch and skip</criterion>
         <criterion checked="true">Multi-Source Query demo added querying SQLite, CSV, and JSON</criterion>
@@ -248,6 +266,9 @@
     <description>Set up Playwright testing infrastructure and helper utilities</description>
 
     <task id="T4.1" name="Install and configure Playwright" priority="high" status="IN_PROGRESS">
+      <notes>
+        <note>After updating demo connection/file-loading behavior, update/extend E2E tests to assert explicit connect() and workspace-relative paths work.</note>
+      </notes>
       <description>Install Playwright dependencies and create configuration</description>
       <acceptance_criteria>
         <criterion checked="true">@playwright/test installed as dev dependency</criterion>
@@ -323,6 +344,9 @@
     </task>
 
     <task id="T5.2" name="Implement expression execution tests" priority="high" status="TODO">
+      <notes>
+        <note>New assertions: each demo should include an explicit connect() step in the sheet; CSV/JSON demos should use T()/csv(file().read())/json(file().read()) patterns with workspace-relative paths.</note>
+      </notes>
       <description>Test expression execution and result validation for all demo types</description>
       <acceptance_criteria>
         <criterion checked="false">expression-execution.spec.ts created</criterion>
@@ -381,6 +405,9 @@
 
   <!-- Phase 6: Documentation and Finalization -->
   <phase id="P6" name="Documentation and Finalization" status="TODO">
+    <notes>
+      <note>When updating docs, document demo conventions: explicit connect() first, and file paths are resolved from workspace root when relative.</note>
+    </notes>
     <description>Update documentation and verify all functionality</description>
 
     <task id="T6.1" name="Update DEV_GUIDE.md" priority="medium" status="TODO">

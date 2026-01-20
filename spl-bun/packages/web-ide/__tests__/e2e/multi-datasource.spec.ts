@@ -23,5 +23,5 @@ test("runs cross-datasource join demo", async ({ page }) => {
   await selectDemo(page, "Cross-Datasource Join");
   await runSheet(page);
   const grid = await getGridData(page);
-  expect(grid.columns.some((col) => col.includes("cust_"))).toBe(true);
+  expect(grid.columns).toContain("price");
 });

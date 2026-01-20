@@ -40,101 +40,110 @@ const demos: Demo[] = [
   {
     id: "states-base",
     label: "US States (A1)",
-    description: "A1 query only",
+    description: "A1 connect, A2 query",
     cells: [
-      { row: 1, col: "A", expr: 'demo.query("select * from STATES")' },
+      { row: 1, col: "A", expr: 'db = connect("demo")' },
+      { row: 2, col: "A", expr: 'db.query("select * from STATES")' },
     ],
   },
   {
     id: "states-max-pop",
     label: "Largest state population",
-    description: "A1 query, A2 max population, A3 lookup",
+    description: "A1 connect, A2 query, A3 max population, A4 lookup",
     cells: [
-      { row: 1, col: "A", expr: 'demo.query("select NAME, POPULATION from STATES order by POPULATION desc limit 10")' },
-      { row: 2, col: "A", expr: 'A1.first().field("POPULATION")' },
-      { row: 3, col: "A", expr: 'demo.query("select NAME, POPULATION from STATES where POPULATION = ?", A2)' },
+      { row: 1, col: "A", expr: 'db = connect("demo")' },
+      { row: 2, col: "A", expr: 'db.query("select NAME, POPULATION from STATES order by POPULATION desc limit 10")' },
+      { row: 3, col: "A", expr: 'A2.first().field("POPULATION")' },
+      { row: 4, col: "A", expr: 'db.query("select NAME, POPULATION from STATES where POPULATION = ?", A3)' },
     ],
   },
   {
     id: "region-drilldown",
     label: "Region drilldown",
-    description: "A1 query, A2 region id, A3 region filter",
+    description: "A1 connect, A2 query, A3 region id, A4 region filter",
     cells: [
-      { row: 1, col: "A", expr: 'demo.query("select NAME, REGIONID, POPULATION from STATES order by POPULATION desc limit 20")' },
-      { row: 2, col: "A", expr: 'A1.first().field("REGIONID")' },
-      { row: 3, col: "A", expr: 'demo.query("select NAME, POPULATION from STATES where REGIONID = ? order by POPULATION desc limit 10", A2)' },
+      { row: 1, col: "A", expr: 'db = connect("demo")' },
+      { row: 2, col: "A", expr: 'db.query("select NAME, REGIONID, POPULATION from STATES order by POPULATION desc limit 20")' },
+      { row: 3, col: "A", expr: 'A2.first().field("REGIONID")' },
+      { row: 4, col: "A", expr: 'db.query("select NAME, POPULATION from STATES where REGIONID = ? order by POPULATION desc limit 10", A3)' },
     ],
   },
   {
     id: "area-children",
     label: "Area children",
-    description: "A1 root areas, A2 pick parent, A3 children",
+    description: "A1 connect, A2 root areas, A3 pick parent, A4 children",
     cells: [
-      { row: 1, col: "A", expr: 'demo.query("select AREAID, AREANAME, FATHER from AREA where FATHER = 0 order by AREAID")' },
-      { row: 2, col: "A", expr: 'A1.first().field("AREAID")' },
-      { row: 3, col: "A", expr: 'demo.query("select AREAID, AREANAME from AREA where FATHER = ? order by AREAID", A2)' },
+      { row: 1, col: "A", expr: 'db = connect("demo")' },
+      { row: 2, col: "A", expr: 'db.query("select AREAID, AREANAME, FATHER from AREA where FATHER = 0 order by AREAID")' },
+      { row: 3, col: "A", expr: 'A2.first().field("AREAID")' },
+      { row: 4, col: "A", expr: 'db.query("select AREAID, AREANAME from AREA where FATHER = ? order by AREAID", A3)' },
     ],
   },
   {
     id: "crud-demo",
     label: "CRUD sandbox",
-    description: "Create/update/delete then query",
+    description: "A1 connect, A2-A6 mutate, A7 query",
     cells: [
-      { row: 1, col: "A", expr: 'demo.execute("drop table if exists DEMO_TMP")' },
-      { row: 2, col: "A", expr: 'demo.execute("create table DEMO_TMP (id int, name varchar(30), region int)")' },
-      { row: 3, col: "A", expr: 'demo.execute("insert into DEMO_TMP values (1, \'North\', 1), (2, \'South\', 2), (3, \'West\', 3)")' },
-      { row: 4, col: "A", expr: 'demo.execute("update DEMO_TMP set name = \'North-East\' where id = 1")' },
-      { row: 5, col: "A", expr: 'demo.execute("delete from DEMO_TMP where id = 2")' },
-      { row: 6, col: "A", expr: 'demo.query("select * from DEMO_TMP order by id")' },
+      { row: 1, col: "A", expr: 'db = connect("demo")' },
+      { row: 2, col: "A", expr: 'db.execute("drop table if exists DEMO_TMP")' },
+      { row: 3, col: "A", expr: 'db.execute("create table DEMO_TMP (id int, name varchar(30), region int)")' },
+      { row: 4, col: "A", expr: 'db.execute("insert into DEMO_TMP values (1, \'North\', 1), (2, \'South\', 2), (3, \'West\', 3)")' },
+      { row: 5, col: "A", expr: 'db.execute("update DEMO_TMP set name = \'North-East\' where id = 1")' },
+      { row: 6, col: "A", expr: 'db.execute("delete from DEMO_TMP where id = 2")' },
+      { row: 7, col: "A", expr: 'db.query("select * from DEMO_TMP order by id")' },
     ],
   },
   {
     id: "sequence-select",
     label: "Sequence Select",
-    description: "A1 loads states; A2 filters POPULATION > 5,000,000 with select()",
+    description: "A1 connect, A2 loads states; A3 filters POPULATION > 5,000,000 with select()",
     cells: [
-      { row: 1, col: "A", expr: 'demo.query("select NAME, POPULATION, REGIONID from STATES")' },
-      { row: 2, col: "A", expr: 'A1.select("POPULATION > 5000000")' },
+      { row: 1, col: "A", expr: 'db = connect("demo")' },
+      { row: 2, col: "A", expr: 'db.query("select NAME, POPULATION, REGIONID from STATES")' },
+      { row: 3, col: "A", expr: 'A2.select("POPULATION > 5000000")' },
     ],
   },
   {
     id: "sequence-sort",
     label: "Sequence Sort",
-    description: "A1 loads states; A2 sorts by POPULATION desc with sort()",
+    description: "A1 connect, A2 loads states; A3 sorts by POPULATION desc with sort()",
     cells: [
-      { row: 1, col: "A", expr: 'demo.query("select NAME, POPULATION from STATES")' },
-      { row: 2, col: "A", expr: 'A1.sort("POPULATION", "desc")' },
+      { row: 1, col: "A", expr: 'db = connect("demo")' },
+      { row: 2, col: "A", expr: 'db.query("select NAME, POPULATION from STATES")' },
+      { row: 3, col: "A", expr: 'A2.sort("POPULATION", "desc")' },
     ],
   },
   {
     id: "data-pipeline",
     label: "Data Pipeline",
-    description: "Filter orders, compute totals, sort, group by customer, then join customer details",
+    description: "A1 connect, A2-A6 transform orders, A7 load customers, A8 join",
     cells: [
-      { row: 1, col: "A", expr: 'demo.query("select ORDER_ID, CUSTOMER_ID, PRODUCT_ID, QUANTITY, ORDER_DATE from ORDERS")' },
-      { row: 2, col: "A", expr: 'A1.select("QUANTITY >= 3")' },
-      { row: 3, col: "A", expr: 'A2.derive({ TOTAL: "PRODUCT_ID * QUANTITY" })' },
-      { row: 4, col: "A", expr: 'A3.sort("TOTAL", "desc")' },
-      { row: 5, col: "A", expr: 'A4.group({ groupBy: ["CUSTOMER_ID"], aggregates: { orderCount: { type: "count" }, totalAmount: { type: "sum", field: "TOTAL" } } })' },
-      { row: 6, col: "A", expr: 'demo.query("select CUSTOMER_ID, NAME, REGION_ID from CUSTOMERS")' },
-      { row: 7, col: "A", expr: 'A5.join(A6, { type: "left", leftKeys: ["CUSTOMER_ID"], rightKeys: ["CUSTOMER_ID"], rightPrefix: "cust_" })' },
+      { row: 1, col: "A", expr: 'db = connect("demo")' },
+      { row: 2, col: "A", expr: 'db.query("select ORDER_ID, CUSTOMER_ID, PRODUCT_ID, QUANTITY, ORDER_DATE from ORDERS")' },
+      { row: 3, col: "A", expr: 'A2.select("QUANTITY >= 3")' },
+      { row: 4, col: "A", expr: 'A3.derive({ TOTAL: "PRODUCT_ID * QUANTITY" })' },
+      { row: 5, col: "A", expr: 'A4.sort("TOTAL", "desc")' },
+      { row: 6, col: "A", expr: 'A5.group({ groupBy: ["CUSTOMER_ID"], aggregates: { orderCount: { type: "count" }, totalAmount: { type: "sum", field: "TOTAL" } } })' },
+      { row: 7, col: "A", expr: 'db.query("select CUSTOMER_ID, NAME, REGION_ID from CUSTOMERS")' },
+      { row: 8, col: "A", expr: 'A6.join(A7, { type: "left", leftKeys: ["CUSTOMER_ID"], rightKeys: ["CUSTOMER_ID"], rightPrefix: "cust_" })' },
     ],
   },
   {
     id: "csv-import",
     label: "CSV Import",
-    description: "Query sales.csv via sales datasource, sort by amount, and filter to North region",
+    description: "A1 load sales.csv (T), A2 sort by amount, A3 filter North",
     cells: [
-      { row: 1, col: "A", expr: 'sales.query("select id, product, amount, date, region from csv_data order by amount desc")' },
-      { row: 2, col: "A", expr: 'A1.select("region == \"North\"")' },
+      { row: 1, col: "A", expr: 'sales = T("./packages/web-server/data/sales.csv")' },
+      { row: 2, col: "A", expr: 'sales.sort("amount", "desc")' },
+      { row: 3, col: "A", expr: 'A2.select("region == \\\"North\\\"")' },
     ],
   },
   {
     id: "json-processing",
     label: "JSON Processing",
-    description: "Load users.json, parse profile JSON, filter gold tier users, and derive labels",
+    description: "A1 load users.json (T), A2 parse profile, A3 filter gold, A4 derive",
     cells: [
-      { row: 1, col: "A", expr: 'users.query("select id, name, region, profile from json_data")' },
+      { row: 1, col: "A", expr: 'users = T("./packages/web-server/data/users.json")' },
       { row: 2, col: "A", expr: 'A1.derive({ profile_obj: "json_parse(profile)" })' },
       { row: 3, col: "A", expr: 'A2.select("profile_obj != null && profile_obj.tier == \\\"gold\\\"")' },
       { row: 4, col: "A", expr: 'A3.derive({ label: "name + \\\"::\\\" + profile_obj.tier", age: "profile_obj.age" })' },
@@ -143,42 +152,45 @@ const demos: Demo[] = [
   {
     id: "data-integration",
     label: "Data Integration",
-    description: "Join sales CSV with user regions from JSON",
+    description: "A1 load sales.csv (T), A2 load users.json (T), A3 join on region",
     cells: [
-      { row: 1, col: "A", expr: 'sales.query("select id, product, amount, region from csv_data")' },
-      { row: 2, col: "A", expr: 'users.query("select id, name, region from json_data")' },
+      { row: 1, col: "A", expr: 'sales = T("./packages/web-server/data/sales.csv")' },
+      { row: 2, col: "A", expr: 'users = T("./packages/web-server/data/users.json")' },
       { row: 3, col: "A", expr: 'A1.join(A2, { type: "left", leftKeys: ["region"], rightKeys: ["region"], rightPrefix: "user_" })' },
     ],
   },
   {
     id: "cursor-pagination",
     label: "Cursor Pagination",
-    description: "Load orders into a sequence, then fetch and skip slices",
+    description: "A1 connect, A2 load orders; A3 fetch, A4 skip, A5 fetch",
     cells: [
-      { row: 1, col: "A", expr: 'demo.query("select ORDER_ID, CUSTOMER_ID, PRODUCT_ID, QUANTITY, ORDER_DATE from ORDERS order by ORDER_ID")' },
-      { row: 2, col: "A", expr: 'A1.fetch(10)' },
-      { row: 3, col: "A", expr: 'A1.skip(10)' },
-      { row: 4, col: "A", expr: 'A1.fetch(10)' },
+      { row: 1, col: "A", expr: 'db = connect("demo")' },
+      { row: 2, col: "A", expr: 'db.query("select ORDER_ID, CUSTOMER_ID, PRODUCT_ID, QUANTITY, ORDER_DATE from ORDERS order by ORDER_ID")' },
+      { row: 3, col: "A", expr: 'A2.fetch(10)' },
+      { row: 4, col: "A", expr: 'A2.skip(10)' },
+      { row: 5, col: "A", expr: 'A2.fetch(10)' },
     ],
   },
   {
     id: "multi-source-query",
     label: "Multi-Source Query",
-    description: "Load SQLite orders plus CSV sales and JSON users in one sheet",
+    description: "A1 connect, A2 orders query; A3 load sales.csv (T); A4 load users.json (T)",
     cells: [
-      { row: 1, col: "A", expr: 'demo.query("select ORDER_ID, CUSTOMER_ID, QUANTITY from ORDERS order by ORDER_ID limit 5")' },
-      { row: 2, col: "A", expr: 'sales.query("select id, product, amount, region from csv_data order by id limit 5")' },
-      { row: 3, col: "A", expr: 'users.query("select id, name, region from json_data order by id limit 5")' },
+      { row: 1, col: "A", expr: 'db = connect("demo")' },
+      { row: 2, col: "A", expr: 'db.query("select ORDER_ID, CUSTOMER_ID, QUANTITY from ORDERS order by ORDER_ID limit 5")' },
+      { row: 3, col: "A", expr: 'T("./packages/web-server/data/sales.csv")' },
+      { row: 4, col: "A", expr: 'T("./packages/web-server/data/users.json")' },
     ],
   },
   {
     id: "cross-datasource-join",
     label: "Cross-Datasource Join",
-    description: "Join orders from SQLite with product details from CSV",
+    description: "A1 connect, A2 orders query, A3 load products.csv (T), A4 join",
     cells: [
-      { row: 1, col: "A", expr: 'demo.query("select ORDER_ID, PRODUCT_ID, CUSTOMER_ID, QUANTITY from ORDERS")' },
-      { row: 2, col: "A", expr: 'products.query("select id, name, category, price from csv_data")' },
-      { row: 3, col: "A", expr: 'A1.join(A2, { type: "left", leftKeys: ["PRODUCT_ID"], rightKeys: ["id"], rightPrefix: "prod_" })' },
+      { row: 1, col: "A", expr: 'db = connect("demo")' },
+      { row: 2, col: "A", expr: 'db.query("select ORDER_ID, PRODUCT_ID, CUSTOMER_ID, QUANTITY from ORDERS")' },
+      { row: 3, col: "A", expr: 'products = T("./packages/web-server/data/products.csv")' },
+      { row: 4, col: "A", expr: 'A2.join(A3, { type: "left", leftKeys: ["PRODUCT_ID"], rightKeys: ["id"], rightPrefix: "prod_" })' },
     ],
   },
 ];
@@ -189,6 +201,14 @@ const selectedDemoId = ref<string>(demos[0].id);
 let univerAPI: FUniver | null = null;
 let workbook: FWorkbook | null = null;
 let gridApi: GridApi | null = null;
+
+declare global {
+  interface Window {
+    __SPL_UNIVER__?: {
+      workbook: FWorkbook;
+    };
+  }
+}
 
 
 onMounted(() => {
@@ -211,7 +231,7 @@ onMounted(() => {
 
   univerAPI = api;
 
-  // Create workbook - A1 contains demo.query expression
+
   workbook = univerAPI.createWorkbook({
     id: "workbook-01",
     name: "SPL Sheet",
@@ -222,7 +242,10 @@ onMounted(() => {
         name: "Sheet1",
         cellData: {
           0: {
-            0: { v: 'demo.query("select * from STATES")' },
+            0: { v: 'db = connect("demo")' },
+          },
+          1: {
+            0: { v: 'db.query("select * from STATES")' },
           },
         },
         rowCount: 20,
@@ -230,6 +253,10 @@ onMounted(() => {
       },
     },
   });
+
+  if (workbook && import.meta.env.DEV) {
+    window.__SPL_UNIVER__ = { workbook };
+  }
 
   console.log("[SPL-IDE] Univer created without formula engine");
 
@@ -368,9 +395,11 @@ function resetSheet() {
     }
   }
 
-  // Set initial value in A1
+  // Set initial value in A1/A2
   const a1 = sheet.getRange(0, 0);
-  a1?.setValue('demo.query("select * from STATES")');
+  a1?.setValue('db = connect("demo")');
+  const a2 = sheet.getRange(1, 0);
+  a2?.setValue('db.query("select * from STATES")');
 
   // Clear AG Grid
   if (gridApi) {

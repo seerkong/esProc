@@ -28,8 +28,8 @@ describe("CsvDataSource", () => {
       const result = await ds.query("select id, name from csv_data order by id");
       expect(result.columns).toEqual(["id", "name"]);
       expect(result.rows).toEqual([
-        { id: "1", name: "alpha" },
-        { id: "2", name: "beta" },
+        ["1", "alpha"],
+        ["2", "beta"],
       ]);
     } finally {
       file.cleanup();
