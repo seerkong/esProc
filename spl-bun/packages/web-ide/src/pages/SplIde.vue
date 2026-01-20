@@ -133,7 +133,7 @@ const demos: Demo[] = [
     label: "CSV Import",
     description: "A1 load sales.csv (T), A2 sort by amount, A3 filter North",
     cells: [
-      { row: 1, col: "A", expr: 'sales = T("./packages/web-server/data/sales.csv")' },
+      { row: 1, col: "A", expr: 'sales = T("./data/sales.csv")' },
       { row: 2, col: "A", expr: 'sales.sort("amount", "desc")' },
       { row: 3, col: "A", expr: 'A2.select("region == \\\"North\\\"")' },
     ],
@@ -143,7 +143,7 @@ const demos: Demo[] = [
     label: "JSON Processing",
     description: "A1 load users.json (T), A2 parse profile, A3 filter gold, A4 derive",
     cells: [
-      { row: 1, col: "A", expr: 'users = T("./packages/web-server/data/users.json")' },
+      { row: 1, col: "A", expr: 'users = T("./data/users.json")' },
       { row: 2, col: "A", expr: 'A1.derive({ profile_obj: "json_parse(profile)" })' },
       { row: 3, col: "A", expr: 'A2.select("profile_obj != null && profile_obj.tier == \\\"gold\\\"")' },
       { row: 4, col: "A", expr: 'A3.derive({ label: "name + \\\"::\\\" + profile_obj.tier", age: "profile_obj.age" })' },
@@ -154,8 +154,8 @@ const demos: Demo[] = [
     label: "Data Integration",
     description: "A1 load sales.csv (T), A2 load users.json (T), A3 join on region",
     cells: [
-      { row: 1, col: "A", expr: 'sales = T("./packages/web-server/data/sales.csv")' },
-      { row: 2, col: "A", expr: 'users = T("./packages/web-server/data/users.json")' },
+      { row: 1, col: "A", expr: 'sales = T("./data/sales.csv")' },
+      { row: 2, col: "A", expr: 'users = T("./data/users.json")' },
       { row: 3, col: "A", expr: 'A1.join(A2, { type: "left", leftKeys: ["region"], rightKeys: ["region"], rightPrefix: "user_" })' },
     ],
   },
@@ -178,8 +178,8 @@ const demos: Demo[] = [
     cells: [
       { row: 1, col: "A", expr: 'db = connect("demo")' },
       { row: 2, col: "A", expr: 'db.query("select ORDER_ID, CUSTOMER_ID, QUANTITY from ORDERS order by ORDER_ID limit 5")' },
-      { row: 3, col: "A", expr: 'T("./packages/web-server/data/sales.csv")' },
-      { row: 4, col: "A", expr: 'T("./packages/web-server/data/users.json")' },
+      { row: 3, col: "A", expr: 'T("./data/sales.csv")' },
+      { row: 4, col: "A", expr: 'T("./data/users.json")' },
     ],
   },
   {
@@ -189,7 +189,7 @@ const demos: Demo[] = [
     cells: [
       { row: 1, col: "A", expr: 'db = connect("demo")' },
       { row: 2, col: "A", expr: 'db.query("select ORDER_ID, PRODUCT_ID, CUSTOMER_ID, QUANTITY from ORDERS")' },
-      { row: 3, col: "A", expr: 'products = T("./packages/web-server/data/products.csv")' },
+      { row: 3, col: "A", expr: 'products = T("./data/products.csv")' },
       { row: 4, col: "A", expr: 'A2.join(A3, { type: "left", leftKeys: ["PRODUCT_ID"], rightKeys: ["id"], rightPrefix: "prod_" })' },
     ],
   },

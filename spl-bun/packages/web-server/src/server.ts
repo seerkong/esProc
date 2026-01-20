@@ -184,13 +184,10 @@ const app = new Elysia()
       return executeMutation(targetDb, sql, params);
     };
 
-    const workspaceRoot = join(__dirname, "../../..");
-
     const baseScope = buildFlowScope({
       connections,
       dataSourceConfigs,
       defaultDbPath: DB_PATH,
-      workspaceRoot,
       adapters: {
         sqliteQuery: executeAdapter,
         sqliteExecute: executeMutationAdapter,
@@ -201,7 +198,6 @@ const app = new Elysia()
       connections,
       dataSourceConfigs,
       defaultDbPath: DB_PATH,
-      workspaceRoot,
       scope: baseScope,
       adapters: {
         sqliteQuery: executeAdapter,
