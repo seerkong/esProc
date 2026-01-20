@@ -1,6 +1,16 @@
 import { describe, expect, test } from "bun:test";
+import { existsSync, readFileSync } from "fs";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import { apiRoutes, type ExecuteRequest } from "@esproc/web-shared";
 import { app } from "../src/server";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const dataDir = join(__dirname, "../data");
+const salesCsvPath = join(dataDir, "sales.csv");
+const productsCsvPath = join(dataDir, "products.csv");
+const configJsonPath = join(dataDir, "config.json");
+const usersJsonPath = join(dataDir, "users.json");
 
 async function postExecute(payload: ExecuteRequest) {
   const res = await app.handle(
@@ -15,6 +25,32 @@ async function postExecute(payload: ExecuteRequest) {
 }
 
 describe("web-server DSL execution (sqlite integration)", () => {
+  test("includes CSV demo files with expected headers", () => {
+    expect(existsSync(salesCsvPath)).toBe(true);
+    expect(existsSync(productsCsvPath)).toBe(true);
+
+    const salesHeader = readFileSync(salesCsvPath, "utf-8").split("\n")[0]?.trim();
+    const productsHeader = readFileSync(productsCsvPath, "utf-8").split("\n")[0]?.trim();
+
+    expect(salesHeader).toBe("id,product,amount,date,region");
+    expect(productsHeader).toBe("id,name,category,price");
+  });
+
+  test("includes JSON demo files with expected shape", () => {
+    expect(existsSync(configJsonPath)).toBe(true);
+    expect(existsSync(usersJsonPath)).toBe(true);
+
+    const config = JSON.parse(readFileSync(configJsonPath, "utf-8"));
+    const users = JSON.parse(readFileSync(usersJsonPath, "utf-8"));
+
+    expect(config.settings?.database?.host).toBeDefined();
+    expect(config.settings?.api?.baseUrl).toBeDefined();
+    expect(Array.isArray(users)).toBe(true);
+    expect(users.length).toBeGreaterThanOrEqual(10);
+    expect(users[0]).toHaveProperty("id");
+    expect(users[0]).toHaveProperty("profile");
+  });
+
   test("executes multi-step demo.query against sqlite", async () => {
     const result = await postExecute({
       flowDef: [
@@ -30,16 +66,29 @@ describe("web-server DSL execution (sqlite integration)", () => {
     expect(result.data.rows.length).toBe(2);
   });
 
+  test("exposes orders and customers tables", async () => {
+    const result = await postExecute({
+      flowDef: [
+        { row: 1, col: "A", expr: `demo.query("select count(*) as cnt from CUSTOMERS")` },
+        { row: 2, col: "A", expr: `demo.query("select count(*) as cnt from ORDERS")` },
+      ],
+    });
+    expect(result.status).toBe("ok");
+    expect(result.cells[0].result.rows[0]?.cnt).toBeGreaterThanOrEqual(20);
+    expect(result.cells[1].result.rows[0]?.cnt).toBeGreaterThanOrEqual(100);
+  });
+
   test("supports parameter binding in demo.query", async () => {
     const result = await postExecute({
       flowDef: [
         { row: 1, col: "A", expr: `demo.query("select AREANAME from AREA where AREAID = ?", 10)` },
         { row: 2, col: "A", expr: `demo.query("select AREANAME from AREA where AREAID = ?", 11)` },
+        { row: 3, col: "A", expr: `demo.query("select AREANAME from AREA where AREAID = ?", 12)` },
       ],
     });
     expect(result.status).toBe("ok");
     expect(result.cells[0].result.rows[0]?.AREANAME?.trim()).toBe("HuNan");
-    expect(result.data.rows[0]?.AREANAME?.trim()).toBe("FuJian");
+    expect(result.data.rows[0]?.AREANAME?.trim()).toBe("GuangDong");
   });
 
   test("allows referencing previous step result via cell ref", async () => {
@@ -47,10 +96,12 @@ describe("web-server DSL execution (sqlite integration)", () => {
       flowDef: [
         { row: 1, col: "A", expr: `demo.query("select * from AREA limit 3")` },
         { row: 2, col: "A", expr: "A1.count()" },
+        { row: 3, col: "A", expr: `demo.query("select * from AREA limit 3")` },
       ],
     });
     expect(result.status).toBe("ok");
     expect(result.cells[1].result).toBe(3);
+    expect(result.data.rows.length).toBe(3);
   });
 
   test("returns error for unknown connection", async () => {
@@ -61,4 +112,5 @@ describe("web-server DSL execution (sqlite integration)", () => {
     expect(result.cells?.[0].status).toBe("error");
     expect(String(result.error)).toContain("Connection 'unknown' not found");
   });
+
 });

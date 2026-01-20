@@ -10,53 +10,68 @@
   <phase id="P1" name="Demo Data Preparation" status="TODO">
     <description>Prepare CSV, JSON demo files and extend demo.db schema</description>
 
-    <task id="T1.1" name="Create CSV demo files" priority="high" status="TODO">
+    <task id="T1.1" name="Create CSV demo files" priority="high" status="DONE">
       <description>Create sales.csv and products.csv with sample data for file operation demos</description>
       <acceptance_criteria>
-        <criterion checked="false">sales.csv created with columns: id, product, amount, date, region</criterion>
-        <criterion checked="false">products.csv created with columns: id, name, category, price</criterion>
-        <criterion checked="false">Both files contain 20-50 rows of realistic sample data</criterion>
-        <criterion checked="false">Files placed in packages/web-server/data/ directory</criterion>
+        <criterion checked="true">sales.csv created with columns: id, product, amount, date, region</criterion>
+        <criterion checked="true">products.csv created with columns: id, name, category, price</criterion>
+        <criterion checked="true">Both files contain 20-50 rows of realistic sample data</criterion>
+        <criterion checked="true">Files placed in packages/web-server/data/ directory</criterion>
       </acceptance_criteria>
       <subtasks>
-        <subtask id="T1.1.1" name="Write test for CSV file existence and structure" status="TODO"/>
-        <subtask id="T1.1.2" name="Create sales.csv with sample data" status="TODO"/>
-        <subtask id="T1.1.3" name="Create products.csv with sample data" status="TODO"/>
-        <subtask id="T1.1.4" name="Verify test passes" status="TODO"/>
+        <subtask id="T1.1.1" name="Write test for CSV file existence and structure" status="DONE"/>
+        <subtask id="T1.1.2" name="Create sales.csv with sample data" status="DONE"/>
+        <subtask id="T1.1.3" name="Create products.csv with sample data" status="DONE"/>
+        <subtask id="T1.1.4" name="Verify test passes" status="DONE"/>
       </subtasks>
+      <changed-key-files>
+        <file>packages/web-server/data/sales.csv</file>
+        <file>packages/web-server/data/products.csv</file>
+        <file>packages/web-server/__tests__/server.integration.test.ts</file>
+      </changed-key-files>
     </task>
-
-    <task id="T1.2" name="Create JSON demo files" priority="high" status="TODO">
+ 
+    <task id="T1.2" name="Create JSON demo files" priority="high" status="DONE">
       <description>Create config.json and users.json with nested structures for JSON operation demos</description>
       <acceptance_criteria>
-        <criterion checked="false">config.json created with nested structure (e.g., settings.database, settings.api)</criterion>
-        <criterion checked="false">users.json created with array of user objects including nested fields</criterion>
-        <criterion checked="false">Files contain 10-30 records with realistic data</criterion>
-        <criterion checked="false">Files placed in packages/web-server/data/ directory</criterion>
+        <criterion checked="true">config.json created with nested structure (e.g., settings.database, settings.api)</criterion>
+        <criterion checked="true">users.json created with array of user objects including nested fields</criterion>
+        <criterion checked="true">Files contain 10-30 records with realistic data</criterion>
+        <criterion checked="true">Files placed in packages/web-server/data/ directory</criterion>
       </acceptance_criteria>
       <subtasks>
-        <subtask id="T1.2.1" name="Write test for JSON file existence and structure" status="TODO"/>
-        <subtask id="T1.2.2" name="Create config.json with nested structure" status="TODO"/>
-        <subtask id="T1.2.3" name="Create users.json with sample data" status="TODO"/>
-        <subtask id="T1.2.4" name="Verify test passes" status="TODO"/>
+        <subtask id="T1.2.1" name="Write test for JSON file existence and structure" status="DONE"/>
+        <subtask id="T1.2.2" name="Create config.json with nested structure" status="DONE"/>
+        <subtask id="T1.2.3" name="Create users.json with sample data" status="DONE"/>
+        <subtask id="T1.2.4" name="Verify test passes" status="DONE"/>
       </subtasks>
+      <changed-key-files>
+        <file>packages/web-server/data/config.json</file>
+        <file>packages/web-server/data/users.json</file>
+        <file>packages/web-server/__tests__/server.integration.test.ts</file>
+      </changed-key-files>
     </task>
+ 
+    <task id="T1.3" name="Extend demo.db schema" priority="high" status="DONE">
 
-    <task id="T1.3" name="Extend demo.db schema" priority="high" status="TODO">
       <description>Add orders and customers tables to demo.db for join and cursor scenarios</description>
       <acceptance_criteria>
-        <criterion checked="false">orders table created with columns: order_id, customer_id, product_id, quantity, order_date</criterion>
-        <criterion checked="false">customers table created with columns: customer_id, name, email, region_id</criterion>
-        <criterion checked="false">Tables populated with 100+ rows for cursor pagination testing</criterion>
-        <criterion checked="false">demo-init.sql updated with new table definitions</criterion>
+        <criterion checked="true">orders table created with columns: order_id, customer_id, product_id, quantity, order_date</criterion>
+        <criterion checked="true">customers table created with columns: customer_id, name, email, region_id</criterion>
+        <criterion checked="true">Tables populated with 100+ rows for cursor pagination testing</criterion>
+        <criterion checked="true">demo-init.sql updated with new table definitions</criterion>
       </acceptance_criteria>
       <subtasks>
-        <subtask id="T1.3.1" name="Write test for new table existence and schema" status="TODO"/>
-        <subtask id="T1.3.2" name="Update demo-init.sql with orders table" status="TODO"/>
-        <subtask id="T1.3.3" name="Update demo-init.sql with customers table" status="TODO"/>
-        <subtask id="T1.3.4" name="Populate tables with sample data" status="TODO"/>
-        <subtask id="T1.3.5" name="Verify test passes" status="TODO"/>
+        <subtask id="T1.3.1" name="Write test for new table existence and schema" status="DONE"/>
+        <subtask id="T1.3.2" name="Update demo-init.sql with orders table" status="DONE"/>
+        <subtask id="T1.3.3" name="Update demo-init.sql with customers table" status="DONE"/>
+        <subtask id="T1.3.4" name="Populate tables with sample data" status="DONE"/>
+        <subtask id="T1.3.5" name="Verify test passes" status="DONE"/>
       </subtasks>
+      <changed-key-files>
+        <file>packages/web-server/data/demo-init.sql</file>
+        <file>packages/web-server/__tests__/server.integration.test.ts</file>
+      </changed-key-files>
     </task>
   </phase>
 
@@ -64,40 +79,56 @@
   <phase id="P2" name="Web-Server Enhancement" status="TODO">
     <description>Migrate web-server to use dataSourceConfigs API for multi-datasource support</description>
 
-    <task id="T2.1" name="Migrate server.ts to dataSourceConfigs" priority="high" status="TODO">
+    <task id="T2.1" name="Migrate server.ts to dataSourceConfigs" priority="high" status="DONE">
       <description>Update server.ts to use dataSourceConfigs instead of connections Map</description>
       <acceptance_criteria>
         <criterion checked="false">server.ts imports ConnectionRegistry and createDataSourceHandle from spl-flow</criterion>
-        <criterion checked="false">SQLite datasource configured using dataSourceConfigs</criterion>
-        <criterion checked="false">CSV datasources (sales, products) configured using dataSourceConfigs</criterion>
-        <criterion checked="false">JSON datasources (config, users) configured using dataSourceConfigs</criterion>
-        <criterion checked="false">evaluateFlow receives dataSourceConfigs in context</criterion>
-        <criterion checked="false">Existing demos continue to work (backward compatibility)</criterion>
+        <criterion checked="true">SQLite datasource configured using dataSourceConfigs</criterion>
+        <criterion checked="true">CSV datasources (sales, products) configured using dataSourceConfigs</criterion>
+        <criterion checked="true">JSON datasources (config, users) configured using dataSourceConfigs</criterion>
+        <criterion checked="true">evaluateFlow receives dataSourceConfigs in context</criterion>
+        <criterion checked="true">Existing demos continue to work (backward compatibility)</criterion>
       </acceptance_criteria>
       <subtasks>
-        <subtask id="T2.1.1" name="Write test for datasource registration" status="TODO"/>
-        <subtask id="T2.1.2" name="Import required modules from spl-flow" status="TODO"/>
-        <subtask id="T2.1.3" name="Create dataSourceConfigs array with all sources" status="TODO"/>
-        <subtask id="T2.1.4" name="Update evaluateFlow calls to use dataSourceConfigs" status="TODO"/>
-        <subtask id="T2.1.5" name="Verify existing tests pass" status="TODO"/>
-        <subtask id="T2.1.6" name="Verify new datasource tests pass" status="TODO"/>
+        <subtask id="T2.1.1" name="Write test for datasource registration" status="DONE"/>
+        <subtask id="T2.1.2" name="Import required modules from spl-flow" status="DONE"/>
+        <subtask id="T2.1.3" name="Create dataSourceConfigs array with all sources" status="DONE"/>
+        <subtask id="T2.1.4" name="Update evaluateFlow calls to use dataSourceConfigs" status="DONE"/>
+        <subtask id="T2.1.5" name="Verify existing tests pass" status="DONE"/>
+        <subtask id="T2.1.6" name="Verify new datasource tests pass" status="DONE"/>
       </subtasks>
+      <changed-key-files>
+        <file>packages/web-server/src/server.ts</file>
+        <file>packages/web-server/__tests__/server.integration.test.ts</file>
+        <file>packages/spl-flow/src/index.ts</file>
+      </changed-key-files>
+      <notes>
+        <note>Ran `bun test packages/web-server/__tests__/server.integration.test.ts` (pass).</note>
+      </notes>
     </task>
 
-    <task id="T2.2" name="Update server integration tests" priority="medium" status="TODO">
+    <task id="T2.2" name="Update server integration tests" priority="medium" status="DONE">
       <description>Update server.integration.test.ts to cover multi-datasource scenarios</description>
       <acceptance_criteria>
-        <criterion checked="false">Test added for CSV datasource query</criterion>
-        <criterion checked="false">Test added for JSON datasource query</criterion>
-        <criterion checked="false">Test added for multi-source query in single flow</criterion>
-        <criterion checked="false">All integration tests pass</criterion>
+        <criterion checked="true">Test added for CSV datasource query</criterion>
+        <criterion checked="true">Test added for JSON datasource query</criterion>
+        <criterion checked="true">Test added for multi-source query in single flow</criterion>
+        <criterion checked="true">All integration tests pass</criterion>
+        <criterion checked="true">DataSource handles are available in scope for CSV/JSON</criterion>
       </acceptance_criteria>
       <subtasks>
-        <subtask id="T2.2.1" name="Write test for CSV datasource query" status="TODO"/>
-        <subtask id="T2.2.2" name="Write test for JSON datasource query" status="TODO"/>
-        <subtask id="T2.2.3" name="Write test for multi-source flow" status="TODO"/>
-        <subtask id="T2.2.4" name="Verify all tests pass" status="TODO"/>
+        <subtask id="T2.2.1" name="Write test for CSV datasource query" status="DONE"/>
+        <subtask id="T2.2.2" name="Write test for JSON datasource query" status="DONE"/>
+        <subtask id="T2.2.3" name="Write test for multi-source flow" status="DONE"/>
+        <subtask id="T2.2.4" name="Verify all tests pass" status="DONE"/>
       </subtasks>
+      <changed-key-files>
+        <file>packages/web-server/__tests__/server.integration.test.ts</file>
+        <file>packages/spl-flow/src/index.ts</file>
+      </changed-key-files>
+      <notes>
+        <note>Ran `bun test packages/web-server/__tests__/server.integration.test.ts` (pass).</note>
+      </notes>
     </task>
   </phase>
 
@@ -105,80 +136,110 @@
   <phase id="P3" name="Web-IDE Demo Implementation" status="TODO">
     <description>Add demos to SplIde.vue showcasing new expression capabilities</description>
 
-    <task id="T3.1" name="Add simple sequence operation demos" priority="high" status="TODO">
+    <task id="T3.1" name="Add simple sequence operation demos" priority="high" status="IN_PROGRESS">
       <description>Add demos for select and sort operations</description>
       <acceptance_criteria>
-        <criterion checked="false">Sequence Select demo added showing data filtering</criterion>
-        <criterion checked="false">Sequence Sort demo added showing data ordering</criterion>
-        <criterion checked="false">Demos use clear, understandable expressions</criterion>
-        <criterion checked="false">Demo descriptions explain what each expression does</criterion>
+        <criterion checked="true">Sequence Select demo added showing data filtering</criterion>
+        <criterion checked="true">Sequence Sort demo added showing data ordering</criterion>
+        <criterion checked="true">Demos use clear, understandable expressions</criterion>
+        <criterion checked="true">Demo descriptions explain what each expression does</criterion>
       </acceptance_criteria>
       <subtasks>
-        <subtask id="T3.1.1" name="Design Sequence Select demo expressions" status="TODO"/>
-        <subtask id="T3.1.2" name="Add Sequence Select demo to demos array" status="TODO"/>
-        <subtask id="T3.1.3" name="Design Sequence Sort demo expressions" status="TODO"/>
-        <subtask id="T3.1.4" name="Add Sequence Sort demo to demos array" status="TODO"/>
+        <subtask id="T3.1.1" name="Design Sequence Select demo expressions" status="DONE"/>
+        <subtask id="T3.1.2" name="Add Sequence Select demo to demos array" status="DONE"/>
+        <subtask id="T3.1.3" name="Design Sequence Sort demo expressions" status="DONE"/>
+        <subtask id="T3.1.4" name="Add Sequence Sort demo to demos array" status="DONE"/>
         <subtask id="T3.1.5" name="Manually test demos in browser" status="TODO"/>
       </subtasks>
+      <changed-key-files>
+        <file>packages/web-ide/src/pages/SplIde.vue</file>
+      </changed-key-files>
+      <notes>
+        <note>Manual browser verification still pending.</note>
+      </notes>
     </task>
 
-    <task id="T3.2" name="Add comprehensive data pipeline demo" priority="high" status="TODO">
+    <task id="T3.2" name="Add comprehensive data pipeline demo" priority="high" status="IN_PROGRESS">
       <description>Add demo combining select, sort, group, join, and derive</description>
       <acceptance_criteria>
-        <criterion checked="false">Data Pipeline demo added with multi-step processing</criterion>
-        <criterion checked="false">Demo uses select to filter data</criterion>
-        <criterion checked="false">Demo uses sort to order results</criterion>
-        <criterion checked="false">Demo uses group to aggregate data</criterion>
-        <criterion checked="false">Demo uses join to combine datasets</criterion>
-        <criterion checked="false">Demo uses derive to add computed fields</criterion>
-        <criterion checked="false">Demo description explains the complete workflow</criterion>
+        <criterion checked="true">Data Pipeline demo added with multi-step processing</criterion>
+        <criterion checked="true">Demo uses select to filter data</criterion>
+        <criterion checked="true">Demo uses sort to order results</criterion>
+        <criterion checked="true">Demo uses group to aggregate data</criterion>
+        <criterion checked="true">Demo uses join to combine datasets</criterion>
+        <criterion checked="true">Demo uses derive to add computed fields</criterion>
+        <criterion checked="true">Demo description explains the complete workflow</criterion>
       </acceptance_criteria>
       <subtasks>
-        <subtask id="T3.2.1" name="Design data pipeline workflow" status="TODO"/>
-        <subtask id="T3.2.2" name="Write expressions for each pipeline step" status="TODO"/>
-        <subtask id="T3.2.3" name="Add Data Pipeline demo to demos array" status="TODO"/>
+        <subtask id="T3.2.1" name="Design data pipeline workflow" status="DONE"/>
+        <subtask id="T3.2.2" name="Write expressions for each pipeline step" status="DONE"/>
+        <subtask id="T3.2.3" name="Add Data Pipeline demo to demos array" status="DONE"/>
         <subtask id="T3.2.4" name="Manually test demo in browser" status="TODO"/>
       </subtasks>
+      <changed-key-files>
+        <file>packages/web-ide/src/pages/SplIde.vue</file>
+      </changed-key-files>
+      <notes>
+        <note>Manual browser verification still pending.</note>
+      </notes>
     </task>
 
-    <task id="T3.3" name="Add file operation demos" priority="high" status="TODO">
+    <task id="T3.3" name="Add file operation demos" priority="high" status="IN_PROGRESS">
       <description>Add demos for CSV and JSON file operations</description>
       <acceptance_criteria>
-        <criterion checked="false">CSV Import demo added showing file read</criterion>
-        <criterion checked="false">JSON Processing demo added showing parse and transform</criterion>
-        <criterion checked="false">Multi-Format Integration demo added combining CSV and JSON</criterion>
-        <criterion checked="false">Demos use the new file datasources</criterion>
-        <criterion checked="false">Demo descriptions explain file operations</criterion>
+        <criterion checked="true">CSV Import demo added showing file read</criterion>
+        <criterion checked="true">JSON Processing demo added showing parse and transform</criterion>
+        <criterion checked="true">Multi-Format Integration demo added combining CSV and JSON</criterion>
+        <criterion checked="true">Demos use the new file datasources</criterion>
+        <criterion checked="true">Demo descriptions explain file operations</criterion>
       </acceptance_criteria>
       <subtasks>
-        <subtask id="T3.3.1" name="Design CSV Import demo expressions" status="TODO"/>
-        <subtask id="T3.3.2" name="Add CSV Import demo to demos array" status="TODO"/>
-        <subtask id="T3.3.3" name="Design JSON Processing demo expressions" status="TODO"/>
-        <subtask id="T3.3.4" name="Add JSON Processing demo to demos array" status="TODO"/>
-        <subtask id="T3.3.5" name="Design Multi-Format Integration demo expressions" status="TODO"/>
-        <subtask id="T3.3.6" name="Add Multi-Format Integration demo to demos array" status="TODO"/>
+        <subtask id="T3.3.1" name="Design CSV Import demo expressions" status="DONE"/>
+        <subtask id="T3.3.2" name="Add CSV Import demo to demos array" status="DONE"/>
+        <subtask id="T3.3.3" name="Design JSON Processing demo expressions" status="DONE"/>
+        <subtask id="T3.3.4" name="Add JSON Processing demo to demos array" status="DONE"/>
+        <subtask id="T3.3.5" name="Design Multi-Format Integration demo expressions" status="DONE"/>
+        <subtask id="T3.3.6" name="Add Multi-Format Integration demo to demos array" status="DONE"/>
         <subtask id="T3.3.7" name="Manually test all file demos in browser" status="TODO"/>
       </subtasks>
+      <changed-key-files>
+        <file>packages/web-ide/src/pages/SplIde.vue</file>
+        <file>packages/spl-flow/src/connection/handle.ts</file>
+        <file>packages/spl-flow/src/datasource/json.ts</file>
+        <file>packages/spl-flow/__tests__/datasource/csv.test.ts</file>
+        <file>packages/spl-flow/__tests__/datasource/json.test.ts</file>
+        <file>packages/spl-flow/__tests__/datasource/connections.test.ts</file>
+      </changed-key-files>
+      <notes>
+        <note>Manual browser verification still pending.</note>
+      </notes>
     </task>
 
-    <task id="T3.4" name="Add cursor and multi-datasource demos" priority="high" status="TODO">
+    <task id="T3.4" name="Add cursor and multi-datasource demos" priority="high" status="IN_PROGRESS">
       <description>Add demos for cursor pagination and multi-datasource queries</description>
       <acceptance_criteria>
-        <criterion checked="false">Cursor Pagination demo added using fetch and skip</criterion>
-        <criterion checked="false">Multi-Source Query demo added querying SQLite, CSV, and JSON</criterion>
-        <criterion checked="false">Cross-Datasource Join demo added joining data from different sources</criterion>
-        <criterion checked="false">Demos demonstrate practical use cases</criterion>
-        <criterion checked="false">Demo descriptions explain cursor and multi-source concepts</criterion>
+        <criterion checked="true">Cursor Pagination demo added using fetch and skip</criterion>
+        <criterion checked="true">Multi-Source Query demo added querying SQLite, CSV, and JSON</criterion>
+        <criterion checked="true">Cross-Datasource Join demo added joining data from different sources</criterion>
+        <criterion checked="true">Demos demonstrate practical use cases</criterion>
+        <criterion checked="true">Demo descriptions explain cursor and multi-source concepts</criterion>
       </acceptance_criteria>
       <subtasks>
-        <subtask id="T3.4.1" name="Design Cursor Pagination demo expressions" status="TODO"/>
-        <subtask id="T3.4.2" name="Add Cursor Pagination demo to demos array" status="TODO"/>
-        <subtask id="T3.4.3" name="Design Multi-Source Query demo expressions" status="TODO"/>
-        <subtask id="T3.4.4" name="Add Multi-Source Query demo to demos array" status="TODO"/>
-        <subtask id="T3.4.5" name="Design Cross-Datasource Join demo expressions" status="TODO"/>
-        <subtask id="T3.4.6" name="Add Cross-Datasource Join demo to demos array" status="TODO"/>
+        <subtask id="T3.4.1" name="Design Cursor Pagination demo expressions" status="DONE"/>
+        <subtask id="T3.4.2" name="Add Cursor Pagination demo to demos array" status="DONE"/>
+        <subtask id="T3.4.3" name="Design Multi-Source Query demo expressions" status="DONE"/>
+        <subtask id="T3.4.4" name="Add Multi-Source Query demo to demos array" status="DONE"/>
+        <subtask id="T3.4.5" name="Design Cross-Datasource Join demo expressions" status="DONE"/>
+        <subtask id="T3.4.6" name="Add Cross-Datasource Join demo to demos array" status="DONE"/>
         <subtask id="T3.4.7" name="Manually test all cursor and multi-source demos in browser" status="TODO"/>
       </subtasks>
+      <changed-key-files>
+        <file>packages/web-ide/src/pages/SplIde.vue</file>
+        <file>packages/spl-flow/src/index.ts</file>
+      </changed-key-files>
+      <notes>
+        <note>Manual browser verification still pending.</note>
+      </notes>
     </task>
   </phase>
 
@@ -186,45 +247,56 @@
   <phase id="P4" name="Playwright E2E Test Infrastructure" status="TODO">
     <description>Set up Playwright testing infrastructure and helper utilities</description>
 
-    <task id="T4.1" name="Install and configure Playwright" priority="high" status="TODO">
+    <task id="T4.1" name="Install and configure Playwright" priority="high" status="IN_PROGRESS">
       <description>Install Playwright dependencies and create configuration</description>
       <acceptance_criteria>
-        <criterion checked="false">@playwright/test installed as dev dependency</criterion>
-        <criterion checked="false">playwright.config.ts created in project root</criterion>
-        <criterion checked="false">Config specifies test directory as packages/web-ide/__tests__/e2e/</criterion>
-        <criterion checked="false">Config includes browser settings (Chromium)</criterion>
-        <criterion checked="false">Config includes base URL and timeout settings</criterion>
-        <criterion checked="false">package.json updated with test:e2e script</criterion>
+        <criterion checked="true">@playwright/test installed as dev dependency</criterion>
+        <criterion checked="true">playwright.config.ts created in project root</criterion>
+        <criterion checked="true">Config specifies test directory as packages/web-ide/__tests__/e2e/</criterion>
+        <criterion checked="true">Config includes browser settings (Chromium)</criterion>
+        <criterion checked="true">Config includes base URL and timeout settings</criterion>
+        <criterion checked="true">package.json updated with test:e2e script</criterion>
       </acceptance_criteria>
       <subtasks>
-        <subtask id="T4.1.1" name="Install @playwright/test" status="TODO"/>
-        <subtask id="T4.1.2" name="Create playwright.config.ts" status="TODO"/>
-        <subtask id="T4.1.3" name="Configure test directory and browser" status="TODO"/>
-        <subtask id="T4.1.4" name="Add test:e2e script to package.json" status="TODO"/>
+        <subtask id="T4.1.1" name="Install @playwright/test" status="DONE"/>
+        <subtask id="T4.1.2" name="Create playwright.config.ts" status="DONE"/>
+        <subtask id="T4.1.3" name="Configure test directory and browser" status="DONE"/>
+        <subtask id="T4.1.4" name="Add test:e2e script to package.json" status="DONE"/>
         <subtask id="T4.1.5" name="Verify Playwright installation with sample test" status="TODO"/>
       </subtasks>
+      <changed-key-files>
+        <file>package.json</file>
+        <file>playwright.config.ts</file>
+        <file>bun.lock</file>
+      </changed-key-files>
+      <notes>
+        <note>Playwright install verification pending.</note>
+      </notes>
     </task>
 
-    <task id="T4.2" name="Create E2E test helpers" priority="high" status="TODO">
+    <task id="T4.2" name="Create E2E test helpers" priority="high" status="IN_PROGRESS">
       <description>Create helper functions for starting/stopping services and common test utilities</description>
       <acceptance_criteria>
-        <criterion checked="false">helpers.ts created in packages/web-ide/__tests__/e2e/</criterion>
-        <criterion checked="false">startBackend() helper function implemented</criterion>
-        <criterion checked="false">startFrontend() helper function implemented</criterion>
-        <criterion checked="false">stopServices() helper function implemented</criterion>
-        <criterion checked="false">waitForDemoLoad() helper function implemented</criterion>
-        <criterion checked="false">selectDemo() helper function implemented</criterion>
-        <criterion checked="false">runSheet() helper function implemented</criterion>
-        <criterion checked="false">getGridData() helper function implemented</criterion>
+        <criterion checked="true">helpers.ts created in packages/web-ide/__tests__/e2e/</criterion>
+        <criterion checked="true">startBackend() helper function implemented</criterion>
+        <criterion checked="true">startFrontend() helper function implemented</criterion>
+        <criterion checked="true">stopServices() helper function implemented</criterion>
+        <criterion checked="true">waitForDemoLoad() helper function implemented</criterion>
+        <criterion checked="true">selectDemo() helper function implemented</criterion>
+        <criterion checked="true">runSheet() helper function implemented</criterion>
+        <criterion checked="true">getGridData() helper function implemented</criterion>
       </acceptance_criteria>
       <subtasks>
-        <subtask id="T4.2.1" name="Create helpers.ts file" status="TODO"/>
-        <subtask id="T4.2.2" name="Implement service startup helpers" status="TODO"/>
-        <subtask id="T4.2.3" name="Implement service cleanup helpers" status="TODO"/>
-        <subtask id="T4.2.4" name="Implement demo interaction helpers" status="TODO"/>
-        <subtask id="T4.2.5" name="Implement result extraction helpers" status="TODO"/>
-        <subtask id="T4.2.6" name="Add JSDoc documentation to all helpers" status="TODO"/>
+        <subtask id="T4.2.1" name="Create helpers.ts file" status="DONE"/>
+        <subtask id="T4.2.2" name="Implement service startup helpers" status="DONE"/>
+        <subtask id="T4.2.3" name="Implement service cleanup helpers" status="DONE"/>
+        <subtask id="T4.2.4" name="Implement demo interaction helpers" status="DONE"/>
+        <subtask id="T4.2.5" name="Implement result extraction helpers" status="DONE"/>
+        <subtask id="T4.2.6" name="Add JSDoc documentation to all helpers" status="DONE"/>
       </subtasks>
+      <changed-key-files>
+        <file>packages/web-ide/__tests__/e2e/helpers.ts</file>
+      </changed-key-files>
     </task>
   </phase>
 

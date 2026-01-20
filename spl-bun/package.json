@@ -13,9 +13,11 @@
     "web-ide:dev": "bun run scripts/web-ide-dev.ts",
     "dev:frontend": "bun run cleanup:frontend && bun run --filter @esproc/web-ide dev",
     "dev:backend": "bun run cleanup:backend && bun run --filter @esproc/web-server dev",
-    "dev": "bun run cleanup && bun run dev:backend & bun run dev:frontend"
+    "dev": "bun run cleanup && bun run dev:backend & bun run dev:frontend",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "bun-types": "latest",
     "typescript": "5.4.5"
   },

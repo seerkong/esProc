@@ -59,7 +59,10 @@ export class JsonDataSource implements DataSource {
       : ["value"];
     const rows = records.map((record) => {
       if (typeof record === "object" && record !== null) {
-        return columns.map((col) => (record as Record<string, unknown>)[col]);
+        return columns.map((col) => {
+          const value = (record as Record<string, unknown>)[col];
+          return value !== null && typeof value === "object" ? JSON.stringify(value) : value;
+        });
       }
       return [record];
     });

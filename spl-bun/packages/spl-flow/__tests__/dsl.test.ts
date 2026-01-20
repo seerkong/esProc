@@ -45,4 +45,14 @@ describe("spl-flow evaluation", () => {
     expect(result.cells[0].status).toBe("error");
     expect(result.cells[0].error).toContain("Connection 'unknown' not found");
   });
+
+  test("uses dataSourceConfigs for query member calls", async () => {
+    const cells: FlowCell[] = [{ row: 1, col: "A", expr: `sales.query("select id from csv_data")` }];
+    const result = await evaluateFlow(cells, {
+      dataSourceConfigs: [{ type: "csv", name: "sales", path: "./sample.csv" }],
+    });
+    expect(result.cells[0].status).toBe("error");
+    expect(String(result.cells[0].error)).toContain("no such file or directory");
+    expect(result.cells[0].error).toBeDefined();
+  });
 });

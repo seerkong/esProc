@@ -38,7 +38,10 @@ describe("Flow dataSourceConfigs", () => {
       const payload = await result.cells[0].result;
       expect(payload).toEqual({
         columns: ["id", "name"],
-        rows: [["1", "alpha"], ["2", "beta"]],
+        rows: [
+          { id: "1", name: "alpha" },
+          { id: "2", name: "beta" },
+        ],
       });
     } finally {
       csvFile.cleanup();

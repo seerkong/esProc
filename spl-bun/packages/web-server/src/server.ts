@@ -19,11 +19,54 @@ import {
   type QueryResultData,
   type ExecuteCellResult,
 } from "@esproc/web-shared";
-import { buildFlowScope, evaluateFlow, type DBConnection } from "@esproc/spl-flow";
+import { buildFlowScope, evaluateFlow, type DBConnection, type DataSourceConfig } from "@esproc/spl-flow";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, "../data/demo.db");
 const INIT_SQL_PATH = join(__dirname, "../data/demo-init.sql");
+const SALES_CSV_PATH = join(__dirname, "../data/sales.csv");
+const PRODUCTS_CSV_PATH = join(__dirname, "../data/products.csv");
+const CONFIG_JSON_PATH = join(__dirname, "../data/config.json");
+const USERS_JSON_PATH = join(__dirname, "../data/users.json");
+
+const EXTENSION_SQL = `
+CREATE TABLE IF NOT EXISTS CUSTOMERS(
+  CUSTOMER_ID INTEGER PRIMARY KEY,
+  NAME TEXT,
+  EMAIL TEXT,
+  REGION_ID INTEGER
+);
+CREATE TABLE IF NOT EXISTS ORDERS(
+  ORDER_ID INTEGER PRIMARY KEY,
+  CUSTOMER_ID INTEGER,
+  PRODUCT_ID INTEGER,
+  QUANTITY INTEGER,
+  ORDER_DATE TEXT
+);
+WITH RECURSIVE seq(x) AS (
+  SELECT 1
+  UNION ALL SELECT x + 1 FROM seq WHERE x < 24
+)
+INSERT INTO CUSTOMERS (CUSTOMER_ID, NAME, EMAIL, REGION_ID)
+SELECT x,
+  printf('Customer %02d', x),
+  printf('customer%02d@example.com', x),
+  ((x - 1) % 4) + 1
+FROM seq
+WHERE NOT EXISTS (SELECT 1 FROM CUSTOMERS LIMIT 1);
+WITH RECURSIVE seq(x) AS (
+  SELECT 1
+  UNION ALL SELECT x + 1 FROM seq WHERE x < 120
+)
+INSERT INTO ORDERS (ORDER_ID, CUSTOMER_ID, PRODUCT_ID, QUANTITY, ORDER_DATE)
+SELECT x,
+  ((x - 1) % 24) + 1,
+  ((x - 1) % 25) + 1,
+  ((x - 1) % 5) + 1,
+  date('2025-01-01', printf('+%d day', x))
+FROM seq
+WHERE NOT EXISTS (SELECT 1 FROM ORDERS LIMIT 1);
+`;
 
 /**
  * Initialize the demo SQLite database
@@ -52,6 +95,9 @@ function initDatabase(): Database {
       console.warn("[Server] Warning: demo-init.sql not found. Run 'bun run convert-demo' to generate it.");
     }
   }
+
+  // Ensure extension tables are present even when demo.db already exists.
+  db.exec(EXTENSION_SQL);
 
   return db;
 }
@@ -94,6 +140,13 @@ const db = initDatabase();
 const connections = new Map<string, DBConnection>([
   ["demo", { name: "demo", type: "sqlite", path: DB_PATH }],
 ]);
+const dataSourceConfigs: DataSourceConfig[] = [
+  { type: "sqlite", name: "demo", path: DB_PATH },
+  { type: "csv", name: "sales", path: SALES_CSV_PATH, hasHeader: true },
+  { type: "csv", name: "products", path: PRODUCTS_CSV_PATH, hasHeader: true },
+  { type: "json", name: "config", path: CONFIG_JSON_PATH },
+  { type: "json", name: "users", path: USERS_JSON_PATH },
+];
 const databases = new Map<string, Database>([["demo", db]]);
 
 // Create Elysia server
@@ -133,6 +186,7 @@ const app = new Elysia()
 
     const baseScope = buildFlowScope({
       connections,
+      dataSourceConfigs,
       defaultDbPath: DB_PATH,
       adapters: {
         sqliteQuery: executeAdapter,
@@ -142,6 +196,7 @@ const app = new Elysia()
 
     const { cells, lastQuery } = await evaluateFlow(expressions, {
       connections,
+      dataSourceConfigs,
       defaultDbPath: DB_PATH,
       scope: baseScope,
       adapters: {

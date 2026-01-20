@@ -1,4 +1,5 @@
 import { compileExpression, defaultMemberRegistry, makeDbHandle } from "@esproc/expression";
+import { DataSet } from "@esproc/core";
 import { ConnectionRegistry } from "./connection/registry";
 import { createDataSourceHandle } from "./connection/handle";
 import type { DataSourceConfig } from "./datasource/types";
@@ -68,16 +69,23 @@ export interface FlowEvaluationResult {
   scope: Record<string, unknown>;
 }
 
+type QueryResultData = { columns: string[]; rows: Record<string, unknown>[] };
+
+type DataSetLike = {
+  rows: Record<string, unknown>[];
+  schema?: { name: string }[];
+};
+
 function toCellRef(row: number, col: string): string {
   return `${String(col).toUpperCase()}${row}`;
 }
 
 function resolveConnection(name: string, ctx: FlowExecutionContext): DBConnection {
   const connection = ctx.connections?.get(name);
-  if (!connection) {
-    throw new Error(`Connection '${name}' not found`);
+  if (connection) {
+    return connection;
   }
-  return connection;
+  throw new Error(`Connection '${name}' not found`);
 }
 
 function inferConnectionName(expression: string): string | null {
@@ -91,7 +99,7 @@ function ensureDbHandles(scope: Record<string, unknown>, ctx: FlowExecutionConte
     for (const config of ctx.dataSourceConfigs) {
       registry.register(config);
       const dataSource = registry.get(config.name);
-      if (dataSource) {
+      if (dataSource && !(config.name in scope)) {
         scope[config.name] = createDataSourceHandle(dataSource);
       }
     }
@@ -228,33 +236,52 @@ export async function evaluateFlow(
 
     try {
       const connectionName = inferConnectionName(expression);
-      if (connectionName && ctx.connections && !scope[connectionName]) {
+      const hasConnection = Boolean(connectionName && ctx.connections?.has(connectionName));
+      const hasDataSource = Boolean(connectionName && ctx.dataSourceConfigs?.some((config) => config.name === connectionName));
+
+      if (connectionName && !scope[connectionName] && hasConnection) {
         const connection = resolveConnection(connectionName, ctx);
         scope[connectionName] = createDbHandle(connection, ctx);
+      }
+
+      if (connectionName && !scope[connectionName] && hasDataSource && ctx.dataSourceConfigs) {
+        const registry = new ConnectionRegistry();
+        for (const config of ctx.dataSourceConfigs) {
+          registry.register(config);
+        }
+        const dataSource = registry.get(connectionName);
+        if (dataSource) {
+          scope[connectionName] = createDataSourceHandle(dataSource);
+        }
+      }
+
+      if (connectionName && !scope[connectionName] && !hasConnection && !hasDataSource) {
+        throw new Error(`Connection '${connectionName}' not found`);
       }
 
       const qValue = resolveQQuery(expression, ctx, scope);
       const compiled = qValue === null
         ? compileExpression(expression, undefined, defaultMemberRegistry)
         : null;
-        let value = qValue === null ? compiled!.evaluate(scope) : qValue;
-        if (value instanceof Promise) {
-          value = await value;
-        }
-        scope[ref] = value;
+      let value = qValue === null ? compiled!.evaluate(scope) : qValue;
+      if (value instanceof Promise) {
+        value = await value;
+      }
+      scope[ref] = value;
 
-        if (value && typeof value === "object" && "columns" in value && "rows" in value) {
-          lastQuery = value;
-        }
+      const queryResult = toQueryResult(value);
+      if (queryResult) {
+        lastQuery = queryResult;
+      }
 
-        evaluations.push({
-          row,
-          col,
-          expr: expression,
-          status: "ok",
-          result: value,
-        });
-      } catch (error) {
+      evaluations.push({
+        row,
+        col,
+        expr: expression,
+        status: "ok",
+        result: value,
+      });
+    } catch (error) {
 
       const message = error instanceof Error ? error.message : String(error);
       evaluations.push({
@@ -268,6 +295,51 @@ export async function evaluateFlow(
   }
 
   return { cells: evaluations, lastQuery, scope };
+}
+
+function isQueryResult(value: unknown): value is QueryResultData {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "columns" in (value as Record<string, unknown>) &&
+      "rows" in (value as Record<string, unknown>) &&
+      Array.isArray((value as { columns?: unknown[] }).columns) &&
+      Array.isArray((value as { rows?: unknown[] }).rows) &&
+      ((value as { rows?: unknown[] }).rows ?? []).every((row) => row && typeof row === "object" && !Array.isArray(row))
+  );
+}
+
+function isDataSetLike(value: unknown): value is DataSetLike {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "rows" in (value as Record<string, unknown>) &&
+      Array.isArray((value as { rows?: unknown[] }).rows)
+  );
+}
+
+function toQueryResult(value: unknown): QueryResultData | null {
+  if (isQueryResult(value)) return value;
+  if (value instanceof DataSet) {
+    return {
+      columns: value.schema.map((col) => col.name),
+      rows: value.rows,
+    };
+  }
+  if (Array.isArray(value)) {
+    const rows = value.filter((row): row is Record<string, unknown> => Boolean(row && typeof row === "object" && !Array.isArray(row)));
+    if (rows.length === 0) return null;
+    return { columns: Object.keys(rows[0]), rows };
+  }
+  if (isDataSetLike(value)) {
+    const rows = (value.rows ?? []).filter((row): row is Record<string, unknown> => Boolean(row && typeof row === "object" && !Array.isArray(row)));
+    if (rows.length === 0) return null;
+    const columns = value.schema?.length
+      ? value.schema.map((col) => col.name)
+      : Object.keys(rows[0]);
+    return { columns, rows };
+  }
+  return null;
 }
 
 export function buildFlowScope(ctx: FlowExecutionContext): Record<string, unknown> {

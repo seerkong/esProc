@@ -207,6 +207,12 @@ describe("expression parser and evaluator", () => {
     expect(calls.map((call) => call.name)).toEqual(["fetch", "skip"]);
   });
 
+  test("sequence fetch and skip", () => {
+    const seq = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }];
+    expect(evaluateExpression("seq.fetch(2)", { seq })).toEqual([{ id: 1 }, { id: 2 }]);
+    expect(evaluateExpression("seq.skip(2)", { seq })).toEqual([{ id: 3 }, { id: 4 }]);
+  });
+
   test("json and parse conversions", () => {
     expect(evaluateExpression("json_parse('{\"a\":1}')", {})).toEqual({ a: 1 });
     expect(evaluateExpression("json('{\"a\":1}')", {})).toEqual({ a: 1 });

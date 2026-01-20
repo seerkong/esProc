@@ -8,6 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@esproc/core": "workspace:*",
     "@esproc/expression": "workspace:*"
   },
   "scripts": {

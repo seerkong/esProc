@@ -280,14 +280,31 @@ function resolveArrayArg(target: unknown, arg?: unknown): unknown[] {
   if (isDataSetLike(target)) return Array.isArray(target.rows) ? target.rows : [];
   if (typeof target === "string") return target.split("");
   if (target == null) return [];
-  if (arg && typeof arg === "string" && typeof target === "object") {
+  if (isRecordLike(target)) return Object.values(target);
+  if (typeof target === "number") {
     const values: unknown[] = [];
-    for (const item of Object.values(target as Record<string, unknown>)) {
-      values.push(item);
+    for (let i = 1; i <= target; i += 1) {
+      values.push(i);
     }
     return values;
   }
+  if (typeof target === "boolean") return [target];
+  if (typeof target === "function") return [];
+  if (typeof target === "symbol") return [];
   return [];
+}
+
+function toSkipCount(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.trunc(value));
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, Math.trunc(parsed));
+    }
+  }
+  return 0;
 }
 
 function pluck(arr: unknown[], field?: unknown): unknown[] {
@@ -360,6 +377,27 @@ function resolveFieldKey(record: Record<string, unknown>, field: unknown): strin
   (target) => {
     const arr = resolveArrayArg(target);
     return arr.length ? arr[arr.length - 1] : null;
+  },
+);
+
+defaultMemberRegistry.add(
+  "fetch",
+  (target) => isArray(target) || isDataSetLike(target),
+  (target, count?: unknown) => {
+    const arr = resolveArrayArg(target);
+    if (count === undefined) return arr;
+    const take = toSkipCount(count);
+    return arr.slice(0, take);
+  },
+);
+
+defaultMemberRegistry.add(
+  "skip",
+  (target) => isArray(target) || isDataSetLike(target),
+  (target, count?: unknown) => {
+    const arr = resolveArrayArg(target);
+    const skip = toSkipCount(count);
+    return arr.slice(skip);
   },
 );
 

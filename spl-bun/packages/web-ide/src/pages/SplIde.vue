@@ -88,6 +88,99 @@ const demos: Demo[] = [
       { row: 6, col: "A", expr: 'demo.query("select * from DEMO_TMP order by id")' },
     ],
   },
+  {
+    id: "sequence-select",
+    label: "Sequence Select",
+    description: "A1 loads states; A2 filters POPULATION > 5,000,000 with select()",
+    cells: [
+      { row: 1, col: "A", expr: 'demo.query("select NAME, POPULATION, REGIONID from STATES")' },
+      { row: 2, col: "A", expr: 'A1.select("POPULATION > 5000000")' },
+    ],
+  },
+  {
+    id: "sequence-sort",
+    label: "Sequence Sort",
+    description: "A1 loads states; A2 sorts by POPULATION desc with sort()",
+    cells: [
+      { row: 1, col: "A", expr: 'demo.query("select NAME, POPULATION from STATES")' },
+      { row: 2, col: "A", expr: 'A1.sort("POPULATION", "desc")' },
+    ],
+  },
+  {
+    id: "data-pipeline",
+    label: "Data Pipeline",
+    description: "Filter orders, compute totals, sort, group by customer, then join customer details",
+    cells: [
+      { row: 1, col: "A", expr: 'demo.query("select ORDER_ID, CUSTOMER_ID, PRODUCT_ID, QUANTITY, ORDER_DATE from ORDERS")' },
+      { row: 2, col: "A", expr: 'A1.select("QUANTITY >= 3")' },
+      { row: 3, col: "A", expr: 'A2.derive({ TOTAL: "PRODUCT_ID * QUANTITY" })' },
+      { row: 4, col: "A", expr: 'A3.sort("TOTAL", "desc")' },
+      { row: 5, col: "A", expr: 'A4.group({ groupBy: ["CUSTOMER_ID"], aggregates: { orderCount: { type: "count" }, totalAmount: { type: "sum", field: "TOTAL" } } })' },
+      { row: 6, col: "A", expr: 'demo.query("select CUSTOMER_ID, NAME, REGION_ID from CUSTOMERS")' },
+      { row: 7, col: "A", expr: 'A5.join(A6, { type: "left", leftKeys: ["CUSTOMER_ID"], rightKeys: ["CUSTOMER_ID"], rightPrefix: "cust_" })' },
+    ],
+  },
+  {
+    id: "csv-import",
+    label: "CSV Import",
+    description: "Query sales.csv via sales datasource, sort by amount, and filter to North region",
+    cells: [
+      { row: 1, col: "A", expr: 'sales.query("select id, product, amount, date, region from csv_data order by amount desc")' },
+      { row: 2, col: "A", expr: 'A1.select("region == \"North\"")' },
+    ],
+  },
+  {
+    id: "json-processing",
+    label: "JSON Processing",
+    description: "Load users.json, parse profile JSON, filter gold tier users, and derive labels",
+    cells: [
+      { row: 1, col: "A", expr: 'users.query("select id, name, region, profile from json_data")' },
+      { row: 2, col: "A", expr: 'A1.derive({ profile_obj: "json_parse(profile)" })' },
+      { row: 3, col: "A", expr: 'A2.select("profile_obj != null && profile_obj.tier == \\\"gold\\\"")' },
+      { row: 4, col: "A", expr: 'A3.derive({ label: "name + \\\"::\\\" + profile_obj.tier", age: "profile_obj.age" })' },
+    ],
+  },
+  {
+    id: "data-integration",
+    label: "Data Integration",
+    description: "Join sales CSV with user regions from JSON",
+    cells: [
+      { row: 1, col: "A", expr: 'sales.query("select id, product, amount, region from csv_data")' },
+      { row: 2, col: "A", expr: 'users.query("select id, name, region from json_data")' },
+      { row: 3, col: "A", expr: 'A1.join(A2, { type: "left", leftKeys: ["region"], rightKeys: ["region"], rightPrefix: "user_" })' },
+    ],
+  },
+  {
+    id: "cursor-pagination",
+    label: "Cursor Pagination",
+    description: "Load orders into a sequence, then fetch and skip slices",
+    cells: [
+      { row: 1, col: "A", expr: 'demo.query("select ORDER_ID, CUSTOMER_ID, PRODUCT_ID, QUANTITY, ORDER_DATE from ORDERS order by ORDER_ID")' },
+      { row: 2, col: "A", expr: 'A1.fetch(10)' },
+      { row: 3, col: "A", expr: 'A1.skip(10)' },
+      { row: 4, col: "A", expr: 'A1.fetch(10)' },
+    ],
+  },
+  {
+    id: "multi-source-query",
+    label: "Multi-Source Query",
+    description: "Load SQLite orders plus CSV sales and JSON users in one sheet",
+    cells: [
+      { row: 1, col: "A", expr: 'demo.query("select ORDER_ID, CUSTOMER_ID, QUANTITY from ORDERS order by ORDER_ID limit 5")' },
+      { row: 2, col: "A", expr: 'sales.query("select id, product, amount, region from csv_data order by id limit 5")' },
+      { row: 3, col: "A", expr: 'users.query("select id, name, region from json_data order by id limit 5")' },
+    ],
+  },
+  {
+    id: "cross-datasource-join",
+    label: "Cross-Datasource Join",
+    description: "Join orders from SQLite with product details from CSV",
+    cells: [
+      { row: 1, col: "A", expr: 'demo.query("select ORDER_ID, PRODUCT_ID, CUSTOMER_ID, QUANTITY from ORDERS")' },
+      { row: 2, col: "A", expr: 'products.query("select id, name, category, price from csv_data")' },
+      { row: 3, col: "A", expr: 'A1.join(A2, { type: "left", leftKeys: ["PRODUCT_ID"], rightKeys: ["id"], rightPrefix: "prod_" })' },
+    ],
+  },
 ];
 
 const status = ref<string>("Idle");
@@ -347,7 +440,7 @@ function loadDemo() {
     </div>
 
     <div class="section result-section">
-      <div class="section-title">Query Results (AG Grid)</div>
+      <div class="section-title">Query Results</div>
       <div class="ag-grid-container ag-theme-alpine" ref="agGridContainerRef"></div>
     </div>
   </div>
