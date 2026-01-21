@@ -295,14 +295,22 @@ function collectColumnA(): ExecuteRequest {
   const sheet = workbook.getActiveSheet();
   if (!sheet) return { flowDef };
 
-  // Scan column A (column index 0) for non-empty cells
-  for (let r = 0; r < 20; r++) {
-    const range = sheet.getRange(r, 0);
-    const val = range?.getValue();
+  const maxRows = sheet.getMaxRows();
+  const colIndex = 0;
 
-    if (val !== undefined && val !== null && val !== "") {
-      flowDef.push({ row: r + 1, col: "A", expr: String(val) });
+  for (let r = 0; r < maxRows; r++) {
+    let val: unknown;
+    try {
+      val = sheet.getRange(r, colIndex)?.getValue();
+    } catch {
+      continue;
     }
+
+    if (val === undefined || val === null) continue;
+    const text = String(val).trim();
+    if (text.length === 0) continue;
+
+    flowDef.push({ row: r + 1, col: "A", expr: text });
   }
 
   return { flowDef };
