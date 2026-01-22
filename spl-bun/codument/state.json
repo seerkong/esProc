@@ -4,7 +4,7 @@
   "current_task": null,
   "last_action": "init",
   "timestamp": "2026-01-17T08:13:44.795Z",
-  "commit_mode": "manual",
+  "commit_mode": "auto",
   "cli_tools": [
     "eidolon",
     "opencode"

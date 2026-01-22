@@ -6,7 +6,7 @@
     <goal>Support fn@opt / obj.m@opt and semicolon argument grouping, then migrate Excel T() usage to Java-style syntax and remove the TS-only options-object form.</goal>
     <created_at>2026-01-22T16:43:39Z</created_at>
     <updated_at>2026-01-22T16:43:39Z</updated_at>
-    <status>new</status>
+    <status>in_progress</status>
     <commit_mode>auto</commit_mode>
   </metadata>
 
