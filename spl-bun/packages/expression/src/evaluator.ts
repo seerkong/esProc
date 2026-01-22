@@ -206,12 +206,30 @@ export function evaluateAst(
       const memberFn = memberRegistry.resolve(node.method, target);
       if (memberFn) {
         const args = node.args.map((arg) => evaluateAst(arg, scope, registry, memberRegistry));
+        if (node.argGroups) {
+          const groups = node.argGroups.map((group) =>
+            group.map((arg) => evaluateAst(arg, scope, registry, memberRegistry))
+          );
+          args.push(groups);
+        }
+        if (node.option) {
+          args.push(node.option);
+        }
         return memberFn(target, ...args);
       }
       if (typeof target === "object" && target !== null) {
         const method = (target as Record<string, unknown>)[node.method];
         if (typeof method === "function") {
           const args = node.args.map((arg) => evaluateAst(arg, scope, registry, memberRegistry));
+          if (node.argGroups) {
+            const groups = node.argGroups.map((group) =>
+              group.map((arg) => evaluateAst(arg, scope, registry, memberRegistry))
+            );
+            args.push(groups);
+          }
+          if (node.option) {
+            args.push(node.option);
+          }
           return (method as (...args: unknown[]) => unknown).apply(target, args);
         }
       }
@@ -262,6 +280,13 @@ export function evaluateAst(
         throw new Error(`Unknown function '${node.callee}'`);
       }
       const args = node.args.map((a) => evaluateAst(a, scope, registry, memberRegistry));
+      if (node.argGroups) {
+        const groups = node.argGroups.map((group) => group.map((a) => evaluateAst(a, scope, registry, memberRegistry)));
+        args.push(groups);
+      }
+      if (node.option) {
+        args.push(node.option);
+      }
       return fn(...args);
     }
     default:
