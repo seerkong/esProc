@@ -99,7 +99,7 @@
       </tasks>
     </phase>
 
-    <phase id="P4" name="Excel T() Migration" status="IN_PROGRESS">
+    <phase id="P4" name="Excel T() Migration" status="DONE">
       <description>Update runtime Excel T() signature and migrate all call sites.</description>
       <tasks>
         <task id="T4.1" name="Update spl-flow T() to use Java-style ; + @" priority="high" status="DONE" commit="b4b13f48f">
@@ -115,11 +115,15 @@
           </acceptance_criteria>
         </task>
 
-        <task id="T4.2" name="Migrate all Excel T() call sites across repo" priority="high" status="TODO">
+        <task id="T4.2" name="Migrate all Excel T() call sites across repo" priority="high" status="DONE" commit="252968516">
+          <changed-key-files>
+            <file>packages/web-ide/src/pages/SplIde.vue</file>
+            <file>packages/spl-flow/__tests__/excel.test.ts</file>
+          </changed-key-files>
           <acceptance_criteria>
-            <criterion checked="false">No remaining occurrences of options-object Excel T() calls</criterion>
-            <criterion checked="false">Web-IDE demos use new syntax (no leading '=')</criterion>
-            <criterion checked="false">All unit tests updated to new syntax</criterion>
+            <criterion checked="true">No remaining occurrences of options-object Excel T() calls</criterion>
+            <criterion checked="true">Web-IDE demos use new syntax (no leading '=')</criterion>
+            <criterion checked="true">All unit tests updated to new syntax</criterion>
           </acceptance_criteria>
         </task>
       </tasks>
