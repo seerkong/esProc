@@ -32,14 +32,18 @@
       </tasks>
     </phase>
 
-    <phase id="P2" name="Parser & AST" status="TODO">
+    <phase id="P2" name="Parser & AST" status="IN_PROGRESS">
       <description>Add @ and ; support in expression parser and AST.</description>
       <tasks>
-        <task id="T2.1" name="Add tokenizer support for '@' and ';'" priority="high" status="TODO">
+        <task id="T2.1" name="Add tokenizer support for '@' and ';'" priority="high" status="DONE" commit="48a411f95">
+          <changed-key-files>
+            <file>packages/expression/src/parser.ts</file>
+            <file>packages/expression/__tests__/callSyntax.test.ts</file>
+          </changed-key-files>
           <subtasks>
-            <subtask id="T2.1.1" name="Write failing parser tests for '@' and ';'" status="TODO" />
-            <subtask id="T2.1.2" name="Implement tokenizer changes" status="TODO" />
-            <subtask id="T2.1.3" name="Run tests and fix" status="TODO" />
+            <subtask id="T2.1.1" name="Write failing parser tests for '@' and ';'" status="DONE" />
+            <subtask id="T2.1.2" name="Implement tokenizer changes" status="DONE" />
+            <subtask id="T2.1.3" name="Run tests and fix" status="DONE" />
           </subtasks>
         </task>
 
