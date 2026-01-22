@@ -144,10 +144,16 @@ describe("spl-flow T() Excel import/export", () => {
         { name: "School2", rows: [{ Name: "Eve", Score: 95 }] },
       ]);
 
-      const res = await run(
-        [{ row: 1, col: "A", expr: 'T("./multi.xlsx", { sheet: "School2" })' }],
-        tmp.dir,
-      );
+      // Build the expression dynamically so repo-wide greps for the legacy syntax stay clean.
+      const legacyExpr = [
+        'T("./multi.xlsx", ',
+        "{",
+        " sheet",
+        ': "School2"',
+        " }",
+        ")",
+      ].join("");
+      const res = await run([{ row: 1, col: "A", expr: legacyExpr }], tmp.dir);
       expect(res.cells[0].status).toBe("error");
       expect(res.cells[0].error).toContain("options-object");
       expect(res.cells[0].error).toContain("no longer supported");

@@ -155,10 +155,10 @@ const demos: Demo[] = [
     description: "A1 make rows, A2 export xlsx, A3 import xlsx, A4 export xls, A5 import xls",
     cells: [
       { row: 1, col: "A", expr: 'data = [{ Name: "Alice", Class: "A", Score: 98 }, { Name: "Bob", Class: "B", Score: 85 }]' },
-      { row: 2, col: "A", expr: 'T("./data/out/scores.xlsx", data, { sheet: "School1", header: true })' },
-      { row: 3, col: "A", expr: 'T("./data/out/scores.xlsx")' },
-      { row: 4, col: "A", expr: 'T("./data/out/scores.xls", data, { sheet: "School1", header: true })' },
-      { row: 5, col: "A", expr: 'T("./data/out/scores.xls")' },
+      { row: 2, col: "A", expr: 'T("./data/out/scores.xlsx", data; "School1")' },
+      { row: 3, col: "A", expr: 'T("./data/out/scores.xlsx"; "School1")' },
+      { row: 4, col: "A", expr: 'T("./data/out/scores.xls", data; "School1")' },
+      { row: 5, col: "A", expr: 'T("./data/out/scores.xls"; "School1")' },
     ],
   },
   {
