@@ -11,6 +11,5 @@
 | Track ID | 名称 | 状态 | 创建时间 |
 |----------|------|------|----------|
 | add-more-core-expression-demos-e2e | 为新增 Expression 核心能力添加 Web-IDE Demo 和 E2E 测试 | in_progress | 2026-01-19 |
-| add-like-regex-and-date-math-functions | 添加 like/regex 与日期/数学函数并补充 Web-IDE Demo | in_progress | 2026-01-22 |
 
 

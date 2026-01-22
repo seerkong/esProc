@@ -5,8 +5,8 @@
     <track_name>Add like/regex and date/math functions + demos</track_name>
     <goal>Add Phase-2 expression functions (like/regex, exp/ln/sign/gcd/lcm, age/workday/workdays) and Web-IDE grouped demos.</goal>
     <created_at>2026-01-22T03:31:00Z</created_at>
-    <updated_at>2026-01-22T21:04:44Z</updated_at>
-    <status>in_progress</status>
+    <updated_at>2026-01-22T21:08:24Z</updated_at>
+    <status>completed</status>
     <commit_mode>auto</commit_mode>
   </metadata>
 
@@ -118,10 +118,10 @@
       </tasks>
     </phase>
 
-    <phase id="P3" name="Codument Validation" status="TODO">
+    <phase id="P3" name="Codument Validation" status="DONE">
       <description>Validate track files and prepare for review</description>
       <tasks>
-        <task id="T3.1" name="Run codument validate --strict" priority="high" status="TODO" />
+        <task id="T3.1" name="Run codument validate --strict" priority="high" status="DONE" />
       </tasks>
     </phase>
   </phases>
