@@ -11,12 +11,24 @@
   </metadata>
 
   <phases>
-    <phase id="P1" name="Spec & Design Lock" status="TODO">
+    <phase id="P1" name="Spec & Design Lock" status="DONE">
       <description>Finalize calling conventions for @ and ;, and confirm breaking migration approach.</description>
       <tasks>
-        <task id="T1.1" name="Confirm exact semantics for @ options delivery" priority="high" status="TODO" />
-        <task id="T1.2" name="Confirm exact semantics for ; argument groups" priority="high" status="TODO" />
-        <task id="T1.3" name="Confirm Excel T() mapping to ; + @" priority="high" status="TODO" />
+        <task id="T1.1" name="Confirm exact semantics for @ options delivery" priority="high" status="DONE" commit="ae054dcfa">
+          <changed-key-files>
+            <file>codument/tracks/add-spl-at-and-semicolon-syntax/references.md</file>
+          </changed-key-files>
+        </task>
+        <task id="T1.2" name="Confirm exact semantics for ; argument groups" priority="high" status="DONE" commit="ae054dcfa">
+          <changed-key-files>
+            <file>codument/tracks/add-spl-at-and-semicolon-syntax/references.md</file>
+          </changed-key-files>
+        </task>
+        <task id="T1.3" name="Confirm Excel T() mapping to ; + @" priority="high" status="DONE" commit="ae054dcfa">
+          <changed-key-files>
+            <file>codument/tracks/add-spl-at-and-semicolon-syntax/references.md</file>
+          </changed-key-files>
+        </task>
       </tasks>
     </phase>
 
