@@ -150,6 +150,57 @@ const demos: Demo[] = [
     ],
   },
   {
+    id: "expr-string-like-regex",
+    label: "Expressions: String (like/regex)",
+    description: "like() wildcard matching and regex() extraction/replacement",
+    cells: [
+      { row: 1, col: "A", expr: 's = "a1b2"' },
+      {
+        row: 2,
+        col: "A",
+        expr:
+          'rows = [ { name: "like(hello, he*o)", value: like("hello", "he*o") }, { name: "like escape", value: like("a*b", "a\\\\*b") }, { name: "like SQL", value: like("abcd", "a%", "s") }, { name: "regex groups", value: regex(s, "(\\\\d)") }, { name: "regex parse", value: s.regex("(\\\\d)", "p") }, { name: "regex replace all", value: regex(s, "(\\\\d)", "X", "a") } ]',
+      },
+      { row: 3, col: "A", expr: 'out = { columns: ["name", "value"], rows: rows }' },
+      { row: 4, col: "A", expr: "out" },
+    ],
+  },
+  {
+    id: "expr-math-phase2",
+    label: "Expressions: Math (exp/ln/sign/gcd/lcm)",
+    description: "Phase-2 math builtins exp/ln/sign/gcd/lcm",
+    cells: [
+      {
+        row: 1,
+        col: "A",
+        expr:
+          'rows = [ { name: "round(exp(1),6)", value: round(exp(1), 6) }, { name: "round(ln(exp(2)),6)", value: round(ln(exp(2)), 6) }, { name: "sign(-3)", value: sign(-3) }, { name: "gcd([12,18])", value: gcd([12, 18]) }, { name: "lcm(3,4,6)", value: lcm(3, 4, 6) } ]',
+      },
+      { row: 2, col: "A", expr: 'out = { columns: ["name", "value"], rows: rows }' },
+      { row: 3, col: "A", expr: "out" },
+    ],
+  },
+  {
+    id: "expr-date-phase2",
+    label: "Expressions: Date (age/workday/workdays)",
+    description: "Phase-2 date builtins age/workday/workdays",
+    cells: [
+      { row: 1, col: "A", expr: 'start = datetime(2000, 6, 15, 0, 0, 0)' },
+      { row: 2, col: "A", expr: 'end = datetime(2026, 6, 14, 0, 0, 0)' },
+      { row: 3, col: "A", expr: 'base = datetime(2026, 1, 2, 0, 0, 0)' },
+      { row: 4, col: "A", expr: 'wd = workday(base, 1)' },
+      { row: 5, col: "A", expr: 'dates = workdays(datetime(2026, 1, 1, 0, 0, 0), datetime(2026, 1, 7, 0, 0, 0))' },
+      {
+        row: 6,
+        col: "A",
+        expr:
+          'rows = [ { name: "age(default)", value: age(start, end) }, { name: "age(y)", value: age(start, end, "y") }, { name: "workday(base,1)", value: year(wd) + "-" + month(wd) + "-" + day(wd) }, { name: "workdays count", value: workdays(datetime(2026, 1, 1, 0, 0, 0), datetime(2026, 1, 7, 0, 0, 0), "n") }, { name: "workdays json", value: json_stringify(dates) } ]',
+      },
+      { row: 7, col: "A", expr: 'out = { columns: ["name", "value"], rows: rows }' },
+      { row: 8, col: "A", expr: "out" },
+    ],
+  },
+  {
     id: "excel-roundtrip",
     label: "Excel Roundtrip",
     description: "A1 make rows, A2 export xlsx, A3 import xlsx, A4 export xls, A5 import xls",
