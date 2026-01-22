@@ -135,24 +135,35 @@ export function parseExpression(source: string): ExpressionNode {
     return null;
   };
 
+  function normalizeOption(raw: string): string {
+    const value = raw.trim().toLowerCase();
+    // SPL options are a non-empty ASCII letters/digits sequence.
+    if (!/^[a-z0-9]+$/.test(value)) {
+      throw new Error(`Invalid option '${raw}'`);
+    }
+    return value;
+  }
+
   function parseOptionAfterAt(): string | null {
     if (!match("operator", "@")) return null;
 
     const tok = current();
     if (tok.type === "identifier") {
       consume();
-      return tok.value ?? "";
+      return normalizeOption(tok.value ?? "");
     }
     // Allow digit-only options like @1 (SPL allows ASCII letters/digits).
     if (tok.type === "number" && tok.value && /^[0-9]+$/.test(tok.value)) {
       consume();
-      return tok.value;
+      return normalizeOption(tok.value);
     }
     throw new Error(`Expected option after '@' at position ${tok.position}`);
   }
 
-  function parseCallArgGroups(parseArg: () => ExpressionNode): ExpressionNode[][] {
+  function parseCallArgGroups(parseArg: () => ExpressionNode): { groups: ExpressionNode[][]; sawSemicolon: boolean } {
     const groups: ExpressionNode[][] = [];
+    let sawSemicolon = false;
+
     while (true) {
       const group: ExpressionNode[] = [];
 
@@ -170,12 +181,14 @@ export function parseExpression(source: string): ExpressionNode {
       groups.push(group);
 
       if (current().type === "operator" && current().value === ";") {
+        sawSemicolon = true;
         consume();
         continue;
       }
       break;
     }
-    return groups;
+
+    return { groups, sawSemicolon };
   }
 
   function parsePrimary(): ExpressionNode {
@@ -193,21 +206,23 @@ export function parseExpression(source: string): ExpressionNode {
     if (tok.type === "identifier") {
       consume();
       const name = tok.value!;
-
-      // `fn@opt(...)` (SPL-style option suffix). In this phase we only accept the syntax;
-      // later tasks will store the normalized option in the AST.
-      parseOptionAfterAt();
-
+      const option = parseOptionAfterAt();
       if (match("paren", "(")) {
         const args: ExpressionNode[] = [];
+        let argGroups: ExpressionNode[][] | undefined;
         if (!match("paren", ")")) {
-          const groups = parseCallArgGroups(parseAssignment);
-          args.push(...groups.flat());
+          const parsed = parseCallArgGroups(parseAssignment);
+          args.push(...parsed.groups.flat());
+          if (parsed.sawSemicolon) argGroups = parsed.groups;
           if (!match("paren", ")")) {
             throw new Error(`Expected ')' at position ${current().position}`);
           }
         }
-        return { type: "call", callee: name, args };
+        return { type: "call", callee: name, args, option: option ?? undefined, argGroups };
+      }
+
+      if (option) {
+        throw new Error(`Expected '(' after option at position ${current().position}`);
       }
       return { type: "identifier", name };
     }
@@ -275,22 +290,23 @@ export function parseExpression(source: string): ExpressionNode {
         }
         const propTok = current();
         consume();
-
-        // `obj.method@opt(...)` (SPL-style option suffix). In this phase we only accept
-        // the syntax; later tasks will store the normalized option in the AST.
-        parseOptionAfterAt();
-
+        const option = parseOptionAfterAt();
         if (match("paren", "(")) {
           const args: ExpressionNode[] = [];
+          let argGroups: ExpressionNode[][] | undefined;
           if (!match("paren", ")")) {
-            const groups = parseCallArgGroups(parseOr);
-            args.push(...groups.flat());
+            const parsed = parseCallArgGroups(parseOr);
+            args.push(...parsed.groups.flat());
+            if (parsed.sawSemicolon) argGroups = parsed.groups;
             if (!match("paren", ")")) {
               throw new Error(`Expected ')' at position ${current().position}`);
             }
           }
-          node = { type: "member_call", object: node, method: propTok.value!, args };
+          node = { type: "member_call", object: node, method: propTok.value!, args, option: option ?? undefined, argGroups };
         } else {
+          if (option) {
+            throw new Error(`Expected '(' after option at position ${current().position}`);
+          }
           node = { type: "member", object: node, property: propTok.value! };
         }
       } else {

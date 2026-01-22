@@ -5,9 +5,9 @@ export type ExpressionNode =
   | { type: "identifier"; name: string }
   | { type: "unary"; op: UnaryOperator; operand: ExpressionNode }
   | { type: "binary"; op: BinaryOperator; left: ExpressionNode; right: ExpressionNode }
-  | { type: "call"; callee: string; args: ExpressionNode[] }
+  | { type: "call"; callee: string; args: ExpressionNode[]; option?: string; argGroups?: ExpressionNode[][] }
   | { type: "member"; object: ExpressionNode; property: string }
-  | { type: "member_call"; object: ExpressionNode; method: string; args: ExpressionNode[] }
+  | { type: "member_call"; object: ExpressionNode; method: string; args: ExpressionNode[]; option?: string; argGroups?: ExpressionNode[][] }
   | { type: "list"; items: ExpressionNode[] }
   | { type: "record"; entries: { key: string; value: ExpressionNode }[] };
 
