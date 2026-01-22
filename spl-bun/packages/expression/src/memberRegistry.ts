@@ -612,7 +612,12 @@ defaultMemberRegistry.add(
       throw new Error("select() expects expression string");
     }
     const dataSet = ensureDataSet(target);
-    const filtered = dataSet.rows.filter((row) => truthy(compileExpression(expr).evaluate(row)));
+    const filtered = dataSet.rows.filter((row) => {
+      const scope: Record<string, unknown> = row && typeof row === "object"
+        ? (row as Record<string, unknown>)
+        : { _: row };
+      return truthy(compileExpression(expr).evaluate(scope));
+    });
     return { rows: filtered, schema: dataSet.schema };
   },
 );
@@ -643,7 +648,9 @@ defaultMemberRegistry.add(
       Object.entries(columns).map(([name, expr]) => [name, compileExpression(expr)]),
     );
     const rows = dataSet.rows.map((row) => {
-      const base = row && typeof row === "object" ? { ...(row as Record<string, unknown>) } : {};
+      const base: Record<string, unknown> = row && typeof row === "object"
+        ? { ...(row as Record<string, unknown>) }
+        : { _: row };
       for (const [name, evaluator] of Object.entries(compiled)) {
         base[name] = evaluator.evaluate(base);
       }
