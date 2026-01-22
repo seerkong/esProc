@@ -96,6 +96,22 @@ function compileLikePattern(pattern: string, options: Set<string>): RegExp {
   return new RegExp(source, ignoreCase ? "i" : "");
 }
 
+const REGEX_OPTIONS = /^[acupw]+$/i;
+
+function isRegexOptionsString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && REGEX_OPTIONS.test(value);
+}
+
+function compileRegexPattern(pattern: string, options: Set<string>, global: boolean): RegExp {
+  const flags = new Set<string>();
+  if (options.has("c")) flags.add("i");
+  if (options.has("u")) flags.add("u");
+  if (global) flags.add("g");
+
+  const source = options.has("w") ? `^(?:${pattern})$` : pattern;
+  return new RegExp(source, Array.from(flags).join(""));
+}
+
 function jsonParse(value: unknown, options?: unknown): unknown {
   if (typeof value !== "string") return value;
   const opts = parseOptions(options);
@@ -217,6 +233,59 @@ export const builtins: FunctionRegistry = {
     const opts = parseOptions(options);
     const re = compileLikePattern(String(pattern), opts);
     return re.test(String(value));
+  },
+  regex: (str: unknown, pattern: unknown, replacementOrOptions?: unknown, options?: unknown) => {
+    if (isNullish(str) || isNullish(pattern)) return null;
+
+    const input = String(str);
+    const pat = String(pattern);
+
+    let replacement: unknown = undefined;
+    let optionArg: unknown = options;
+
+    if (replacementOrOptions !== undefined) {
+      // Disambiguate 3-arg calls: if arg3 looks like options, treat as extraction mode.
+      if (options === undefined && isRegexOptionsString(replacementOrOptions)) {
+        optionArg = replacementOrOptions;
+      } else {
+        replacement = replacementOrOptions;
+      }
+    }
+
+    const opts = parseOptions(optionArg);
+    const extractionMode = replacement === undefined;
+
+    if (extractionMode) {
+      const re = compileRegexPattern(pat, opts, true);
+      const matches = Array.from(input.matchAll(re));
+      if (matches.length === 0) return null;
+
+      const groupCount = matches[0].length - 1;
+      if (groupCount <= 0) {
+        // No capture groups: return the original string on match.
+        return input;
+      }
+
+      const parseGroups = opts.has("p");
+      if (groupCount === 1) {
+        const out = matches.map((m) => m[1] ?? "");
+        return parseGroups ? out.map((v) => parseLiteral(v)) : out;
+      }
+
+      const out = matches.map((m) => {
+        const groups: string[] = [];
+        for (let i = 1; i <= groupCount; i += 1) {
+          groups.push(m[i] ?? "");
+        }
+        return parseGroups ? groups.map((v) => parseLiteral(v)) : groups;
+      });
+      return out;
+    }
+
+    const replacementText = replacement == null ? "" : String(replacement);
+    const replaceAll = opts.has("a");
+    const re = compileRegexPattern(pat, opts, replaceAll);
+    return input.replace(re, replacementText);
   },
   pos: (str: unknown, sub: unknown) => {
     const s = String(str ?? "");

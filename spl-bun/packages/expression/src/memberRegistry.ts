@@ -324,6 +324,16 @@ defaultMemberRegistry.add(
   },
 );
 
+// string regex()
+defaultMemberRegistry.add(
+  "regex",
+  (target) => typeof unwrap(target) === "string",
+  (target, pattern: unknown, replacementOrOptions?: unknown, options?: unknown) => {
+    const { builtins } = require("./functions") as typeof import("./functions");
+    return builtins.regex(String(unwrap(target)), pattern, replacementOrOptions, options);
+  },
+);
+
 // sum/avg/min/max
 for (const [name, fn] of [
   ["sum", sumArray],
