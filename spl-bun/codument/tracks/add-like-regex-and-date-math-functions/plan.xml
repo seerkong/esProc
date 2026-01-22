@@ -5,7 +5,7 @@
     <track_name>Add like/regex and date/math functions + demos</track_name>
     <goal>Add Phase-2 expression functions (like/regex, exp/ln/sign/gcd/lcm, age/workday/workdays) and Web-IDE grouped demos.</goal>
     <created_at>2026-01-22T03:31:00Z</created_at>
-    <updated_at>2026-01-22T20:33:12Z</updated_at>
+    <updated_at>2026-01-22T20:41:21Z</updated_at>
     <status>in_progress</status>
     <commit_mode>auto</commit_mode>
   </metadata>
@@ -31,18 +31,23 @@
           </changed-key-files>
         </task>
 
-        <task id="T1.2" name="Add regex() builtin and string member" priority="high" status="TODO">
+        <task id="T1.2" name="Add regex() builtin and string member" priority="high" status="DONE" commit="f32ff31d5">
           <acceptance_criteria>
-            <criterion checked="false">regex() builtin supports extraction + replacement modes</criterion>
-            <criterion checked="false">String member .regex() behaves equivalently to builtin</criterion>
-            <criterion checked="false">Unit tests cover groups (0/1/multi), options, and replace-first vs replace-all</criterion>
+            <criterion checked="true">regex() builtin supports extraction + replacement modes</criterion>
+            <criterion checked="true">String member .regex() behaves equivalently to builtin</criterion>
+            <criterion checked="true">Unit tests cover groups (0/1/multi), options, and replace-first vs replace-all</criterion>
           </acceptance_criteria>
           <subtasks>
-            <subtask id="T1.2.1" name="Write failing tests for regex()" status="TODO" />
-            <subtask id="T1.2.2" name="Implement regex() builtin" status="TODO" />
-            <subtask id="T1.2.3" name="Implement string member .regex()" status="TODO" />
-            <subtask id="T1.2.4" name="Run tests and fix" status="TODO" />
+            <subtask id="T1.2.1" name="Write failing tests for regex()" status="DONE" />
+            <subtask id="T1.2.2" name="Implement regex() builtin" status="DONE" />
+            <subtask id="T1.2.3" name="Implement string member .regex()" status="DONE" />
+            <subtask id="T1.2.4" name="Run tests and fix" status="DONE" />
           </subtasks>
+          <changed-key-files>
+            <file>packages/expression/src/functions.ts</file>
+            <file>packages/expression/src/memberRegistry.ts</file>
+            <file>packages/expression/__tests__/regex.test.ts</file>
+          </changed-key-files>
         </task>
 
         <task id="T1.3" name="Add math builtins exp/ln/sign/gcd/lcm" priority="high" status="TODO">
