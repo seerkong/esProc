@@ -5,7 +5,7 @@
     <track_name>Add like/regex and date/math functions + demos</track_name>
     <goal>Add Phase-2 expression functions (like/regex, exp/ln/sign/gcd/lcm, age/workday/workdays) and Web-IDE grouped demos.</goal>
     <created_at>2026-01-22T03:31:00Z</created_at>
-    <updated_at>2026-01-22T20:41:21Z</updated_at>
+    <updated_at>2026-01-22T20:45:26Z</updated_at>
     <status>in_progress</status>
     <commit_mode>auto</commit_mode>
   </metadata>
@@ -50,17 +50,21 @@
           </changed-key-files>
         </task>
 
-        <task id="T1.3" name="Add math builtins exp/ln/sign/gcd/lcm" priority="high" status="TODO">
+        <task id="T1.3" name="Add math builtins exp/ln/sign/gcd/lcm" priority="high" status="DONE" commit="2a9c5a7fd">
           <acceptance_criteria>
-            <criterion checked="false">exp(), ln(), sign() work and are tested</criterion>
-            <criterion checked="false">gcd()/lcm() accept arrays and variadic inputs</criterion>
-            <criterion checked="false">gcd/lcm edge cases match documented behavior</criterion>
+            <criterion checked="true">exp(), ln(), sign() work and are tested</criterion>
+            <criterion checked="true">gcd()/lcm() accept arrays and variadic inputs</criterion>
+            <criterion checked="true">gcd/lcm edge cases match documented behavior</criterion>
           </acceptance_criteria>
           <subtasks>
-            <subtask id="T1.3.1" name="Write failing tests for exp/ln/sign/gcd/lcm" status="TODO" />
-            <subtask id="T1.3.2" name="Implement exp/ln/sign/gcd/lcm" status="TODO" />
-            <subtask id="T1.3.3" name="Run tests and fix" status="TODO" />
+            <subtask id="T1.3.1" name="Write failing tests for exp/ln/sign/gcd/lcm" status="DONE" />
+            <subtask id="T1.3.2" name="Implement exp/ln/sign/gcd/lcm" status="DONE" />
+            <subtask id="T1.3.3" name="Run tests and fix" status="DONE" />
           </subtasks>
+          <changed-key-files>
+            <file>packages/expression/src/functions.ts</file>
+            <file>packages/expression/__tests__/mathPhase2.test.ts</file>
+          </changed-key-files>
         </task>
 
         <task id="T1.4" name="Add date builtins age/workday/workdays" priority="high" status="TODO">
