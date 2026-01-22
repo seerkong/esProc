@@ -30,6 +30,16 @@ function writeWorkbook(filePath: string, sheets: SheetSpec[]): void {
   writeFileSync(filePath, out);
 }
 
+function writeWorkbookMatrix(filePath: string, sheetName: string, matrix: unknown[][]): void {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(matrix);
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+  const bookType = filePath.toLowerCase().endsWith(".xls") ? "biff8" : "xlsx";
+  const out = XLSX.write(wb, { bookType: bookType as never, type: "buffer" }) as unknown as Uint8Array;
+  writeFileSync(filePath, out);
+}
+
 async function run(cells: FlowCell[], workspaceRoot: string) {
   return evaluateFlow(cells, { workspaceRoot });
 }
@@ -73,13 +83,74 @@ describe("spl-flow T() Excel import/export", () => {
       ]);
 
       const res = await run(
-        [{ row: 1, col: "A", expr: 'T("./multi.xlsx", { sheet: "School2" })' }],
+        [{ row: 1, col: "A", expr: 'T("./multi.xlsx"; "School2")' }],
         tmp.dir,
       );
       expect(res.cells[0].status).toBe("ok");
       const out = res.scope.A1 as { rows: Record<string, unknown>[] };
       expect(out.rows.length).toBe(1);
       expect(out.rows[0].Name).toBe("Eve");
+    } finally {
+      tmp.cleanup();
+    }
+  });
+
+  test("exports to a named sheet and re-imports from that sheet", async () => {
+    const tmp = withTempDir("spl-bun-excel-");
+    try {
+      const flow: FlowCell[] = [
+        { row: 1, col: "A", expr: 'data = [{ id: 1, name: "alpha" }, { id: 2, name: "beta" }]' },
+        { row: 2, col: "A", expr: 'T("./out/named.xlsx", data; "School1")' },
+        { row: 3, col: "A", expr: 'T("./out/named.xlsx"; "School1")' },
+      ];
+
+      const res = await run(flow, tmp.dir);
+      expect(res.cells.every((c) => c.status === "ok")).toBe(true);
+      expect(res.scope.A2).toBe("./out/named.xlsx");
+
+      const imported = res.scope.A3 as { rows: Record<string, unknown>[] };
+      expect(imported.rows.length).toBe(2);
+      expect(imported.rows[0].id).toBe(1);
+      expect(imported.rows[1].name).toBe("beta");
+    } finally {
+      tmp.cleanup();
+    }
+  });
+
+  test("supports @b no-header import", async () => {
+    const tmp = withTempDir("spl-bun-excel-");
+    try {
+      writeWorkbookMatrix(join(tmp.dir, "no_header.xlsx"), "Sheet1", [
+        ["Alice", 98],
+        ["Bob", 85],
+      ]);
+
+      const res = await run([{ row: 1, col: "A", expr: 'T@b("./no_header.xlsx")' }], tmp.dir);
+      expect(res.cells[0].status).toBe("ok");
+      const out = res.scope.A1 as { rows: Record<string, unknown>[]; schema?: { name: string }[] };
+      expect(out.schema?.map((c) => c.name)).toEqual(["#1", "#2"]);
+      expect(out.rows[0]["#1"]).toBe("Alice");
+      expect(out.rows[0]["#2"]).toBe(98);
+    } finally {
+      tmp.cleanup();
+    }
+  });
+
+  test("rejects the old options-object Excel T() form", async () => {
+    const tmp = withTempDir("spl-bun-excel-");
+    try {
+      writeWorkbook(join(tmp.dir, "multi.xlsx"), [
+        { name: "School1", rows: [{ Name: "Alice", Score: 98 }] },
+        { name: "School2", rows: [{ Name: "Eve", Score: 95 }] },
+      ]);
+
+      const res = await run(
+        [{ row: 1, col: "A", expr: 'T("./multi.xlsx", { sheet: "School2" })' }],
+        tmp.dir,
+      );
+      expect(res.cells[0].status).toBe("error");
+      expect(res.cells[0].error).toContain("options-object");
+      expect(res.cells[0].error).toContain("no longer supported");
     } finally {
       tmp.cleanup();
     }

@@ -197,15 +197,23 @@ function makeRuntimeFunctions(ctx: FlowExecutionContext): FunctionRegistry {
 
   type ExcelIoOptions = { sheet?: string | number; header?: boolean };
 
-  function parseExcelOptions(value: unknown): ExcelIoOptions {
-    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  type CallArgGroupsValue = unknown[][];
+
+  function isCallArgGroupsValue(value: unknown): value is CallArgGroupsValue {
+    return Array.isArray(value) && value.every((v) => Array.isArray(v));
+  }
+
+  function isExcelOptionsObject(value: unknown): boolean {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
     const obj = value as Record<string, unknown>;
-    const sheet = obj.sheet;
-    const header = obj.header;
-    return {
-      sheet: typeof sheet === "string" || typeof sheet === "number" ? sheet : undefined,
-      header: typeof header === "boolean" ? header : undefined,
-    };
+    return "sheet" in obj || "header" in obj;
+  }
+
+  function parseExcelSheet(value: unknown): string | number | undefined {
+    if (typeof value === "string") return value;
+    if (typeof value === "number") return value;
+    if (value === undefined) return undefined;
+    throw new Error("T() sheet must be a string (name) or number (1-based index)");
   }
 
   function readExcelTable(filePath: string, options: ExcelIoOptions): DataSetLike {
@@ -310,7 +318,9 @@ function makeRuntimeFunctions(ctx: FlowExecutionContext): FunctionRegistry {
     writeFileSync(filePath, out);
   }
 
-  const tFn = (path?: unknown, arg1?: unknown, arg2?: unknown): unknown => {
+  const tFn = (...rawArgs: unknown[]): unknown => {
+    const args = [...rawArgs];
+    const path = args.shift();
     if (typeof path !== "string" || path.trim().length === 0) {
       throw new Error("T() expects a path string");
     }
@@ -318,22 +328,99 @@ function makeRuntimeFunctions(ctx: FlowExecutionContext): FunctionRegistry {
     const resolved = resolveWorkspacePath(sourcePath, ctx);
     const ext = extname(resolved).toLowerCase();
 
-    if (ext === ".xls" || ext === ".xlsx") {
-      const isRead = arg1 === undefined || (arg1 && typeof arg1 === "object" && !Array.isArray(arg1) && !isDataSetLike(arg1));
-      if (isRead) {
-        return readExcelTable(resolved, parseExcelOptions(arg1));
+    // Expression evaluator appends:
+    // - argGroups (evaluated, nested arrays) when semicolon groups exist
+    // - option string when @ options exist
+    let option: string | undefined;
+    if (args.length >= 1) {
+      const last = args[args.length - 1];
+      const prev = args.length >= 2 ? args[args.length - 2] : undefined;
+      const looksLikeOption = (value: unknown) =>
+        typeof value === "string" && value.length > 0 && /^[a-z0-9]+$/.test(value);
+
+      // When semicolon groups are present, the option (if any) must follow the argGroups value.
+      if (looksLikeOption(last) && isCallArgGroupsValue(prev)) {
+        option = last as string;
+        args.pop();
+      } else if (looksLikeOption(last)) {
+        // Without semicolon groups, treat the last string as an option only for the supported
+        // Excel subset (avoids mis-reading sheet names as options).
+        const candidate = last as string;
+        if (/^[bc]+$/.test(candidate)) {
+          option = candidate;
+          args.pop();
+        }
       }
-      writeExcelFile(resolved, arg1, parseExcelOptions(arg2));
+    }
+
+    let argGroups: CallArgGroupsValue | undefined;
+    if (args.length >= 1 && isCallArgGroupsValue(args[args.length - 1])) {
+      argGroups = args.pop() as CallArgGroupsValue;
+    }
+
+    // Support a small parity subset for Excel T():
+    // - @b: no header/title row (default: has header)
+    // - @c: cursor mode is NOT implemented yet (xlsx-only in Java)
+    if (option) {
+      if (option.includes("c")) {
+        throw new Error("T@c cursor mode is not supported yet (xlsx-only in Java SPL)");
+      }
+      const unsupported = option.replace(/[bc]/g, "");
+      if (unsupported.length > 0) {
+        throw new Error(`T() unsupported option(s): ${unsupported}`);
+      }
+    }
+
+    if (ext === ".xls" || ext === ".xlsx") {
+      const header = !(option && option.includes("b"));
+
+      let sheet: string | number | undefined;
+      let data: unknown;
+
+      if (argGroups) {
+        const g1 = argGroups[0] ?? [];
+        const g2 = argGroups[1] ?? [];
+
+        if (argGroups.length > 2) {
+          throw new Error("T() too many ';' groups for Excel");
+        }
+        if (g2.length > 1) {
+          throw new Error("T() Excel sheet group must have at most 1 argument");
+        }
+
+        data = g1.length >= 2 ? g1[1] : undefined;
+        sheet = parseExcelSheet(g2[0]);
+      } else {
+        data = args[0];
+
+        // Excel sheet selection must use semicolon syntax: `T(path; sheet)` or `T(path, data; sheet)`.
+        if (typeof data === "string" || typeof data === "number") {
+          throw new Error("T() Excel sheet selection requires ';' groups: use T(path; sheet) or T(path, data; sheet)");
+        }
+      }
+
+      // BREAKING: remove the TS-only options-object forms.
+      if (isExcelOptionsObject(data) || isExcelOptionsObject(args[1])) {
+        throw new Error(
+          "T() Excel options-object form is no longer supported; use semicolon groups for sheet and @b for no-header",
+        );
+      }
+
+      const excelOptions: ExcelIoOptions = { sheet, header };
+      if (data === undefined) {
+        return readExcelTable(resolved, excelOptions);
+      }
+      writeExcelFile(resolved, data, excelOptions);
       return sourcePath;
     }
 
     const content = readFileSync(resolved, "utf-8");
     if (ext === ".csv") {
-      if (arg1 !== undefined) throw new Error("T() CSV does not support export");
+      if (args[0] !== undefined) throw new Error("T() CSV does not support export");
       return parseCsvContent(content);
     }
     if (ext === ".json") {
-      if (arg1 !== undefined) throw new Error("T() JSON does not support export");
+      if (args[0] !== undefined) throw new Error("T() JSON does not support export");
       const data = JSON.parse(content) as unknown;
       if (Array.isArray(data)) {
         return {
