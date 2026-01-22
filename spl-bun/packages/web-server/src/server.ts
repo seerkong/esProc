@@ -22,6 +22,13 @@ import {
 import { buildFlowScope, evaluateFlow, type DBConnection, type DataSourceConfig } from "@esproc/spl-flow";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+const WORKSPACE_ROOT = join(__dirname, "..");
+const OUT_DIR = join(WORKSPACE_ROOT, "data", "out");
+if (!existsSync(OUT_DIR)) {
+  mkdirSync(OUT_DIR, { recursive: true });
+}
+
 const DB_PATH = join(__dirname, "../data/demo.db");
 const INIT_SQL_PATH = join(__dirname, "../data/demo-init.sql");
 const SALES_CSV_PATH = join(__dirname, "../data/sales.csv");
@@ -188,6 +195,7 @@ const app = new Elysia()
       connections,
       dataSourceConfigs,
       defaultDbPath: DB_PATH,
+      workspaceRoot: WORKSPACE_ROOT,
       adapters: {
         sqliteQuery: executeAdapter,
         sqliteExecute: executeMutationAdapter,
@@ -198,6 +206,7 @@ const app = new Elysia()
       connections,
       dataSourceConfigs,
       defaultDbPath: DB_PATH,
+      workspaceRoot: WORKSPACE_ROOT,
       scope: baseScope,
       adapters: {
         sqliteQuery: executeAdapter,

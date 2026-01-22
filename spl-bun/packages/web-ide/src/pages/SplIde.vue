@@ -150,6 +150,18 @@ const demos: Demo[] = [
     ],
   },
   {
+    id: "excel-roundtrip",
+    label: "Excel Roundtrip",
+    description: "A1 make rows, A2 export xlsx, A3 import xlsx, A4 export xls, A5 import xls",
+    cells: [
+      { row: 1, col: "A", expr: 'data = [{ Name: "Alice", Class: "A", Score: 98 }, { Name: "Bob", Class: "B", Score: 85 }]' },
+      { row: 2, col: "A", expr: 'T("./data/out/scores.xlsx", data, { sheet: "School1", header: true })' },
+      { row: 3, col: "A", expr: 'T("./data/out/scores.xlsx")' },
+      { row: 4, col: "A", expr: 'T("./data/out/scores.xls", data, { sheet: "School1", header: true })' },
+      { row: 5, col: "A", expr: 'T("./data/out/scores.xls")' },
+    ],
+  },
+  {
     id: "data-integration",
     label: "Data Integration",
     description: "A1 load sales.csv (T), A2 load users.json (T), A3 join on region",

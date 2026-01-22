@@ -131,3 +131,6 @@ frontend/packages/react/public/**
 !frontend/packages/react/public/.gitkeep
 test-results/
 **/test-results/
+
+# SPL web-server export output
+spl-bun/packages/web-server/data/out/

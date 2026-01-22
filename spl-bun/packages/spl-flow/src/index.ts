@@ -7,8 +7,9 @@ import {
   type FunctionRegistry,
 } from "@esproc/expression";
 import { DataSet } from "@esproc/core";
-import { readFileSync } from "fs";
-import { extname, isAbsolute, resolve as resolvePath, sep } from "path";
+import { mkdirSync, readFileSync, writeFileSync } from "fs";
+import { dirname, extname, isAbsolute, resolve as resolvePath, sep } from "path";
+import * as XLSX from "xlsx";
 import { ConnectionRegistry } from "./connection/registry";
 import { createDataSourceHandle } from "./connection/handle";
 import { DataSourceFactory } from "./datasource/factory";
@@ -99,10 +100,9 @@ function getWorkspaceRoot(ctx: FlowExecutionContext): string {
 }
 
 function resolveWorkspacePath(input: string, ctx: FlowExecutionContext): string {
-  if (isAbsolute(input)) return input;
   const root = getWorkspaceRoot(ctx);
-  const resolved = resolvePath(root, input);
   const rootResolved = resolvePath(root);
+  const resolved = isAbsolute(input) ? resolvePath(input) : resolvePath(rootResolved, input);
   const rootPrefix = rootResolved.endsWith(sep) ? rootResolved : rootResolved + sep;
   if (resolved !== rootResolved && !resolved.startsWith(rootPrefix)) {
     throw new Error("Path escapes workspace root");
@@ -195,22 +195,153 @@ function makeRuntimeFunctions(ctx: FlowExecutionContext): FunctionRegistry {
     return parseCsvContent(content);
   };
 
-  const tFn = (path?: unknown): unknown => {
+  type ExcelIoOptions = { sheet?: string | number; header?: boolean };
+
+  function parseExcelOptions(value: unknown): ExcelIoOptions {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    const obj = value as Record<string, unknown>;
+    const sheet = obj.sheet;
+    const header = obj.header;
+    return {
+      sheet: typeof sheet === "string" || typeof sheet === "number" ? sheet : undefined,
+      header: typeof header === "boolean" ? header : undefined,
+    };
+  }
+
+  function readExcelTable(filePath: string, options: ExcelIoOptions): DataSetLike {
+    const buf = readFileSync(filePath);
+    const wb = XLSX.read(buf, { type: "buffer", cellDates: true });
+
+    const sheetName = (() => {
+      const requested = options.sheet;
+      if (requested === undefined) return wb.SheetNames[0];
+      if (typeof requested === "number") {
+        const idx = Math.trunc(requested) - 1;
+        if (idx < 0 || idx >= wb.SheetNames.length) {
+          throw new Error(`T() invalid sheet index: ${requested}`);
+        }
+        return wb.SheetNames[idx];
+      }
+      if (typeof requested === "string") {
+        if (!wb.SheetNames.includes(requested)) {
+          throw new Error(`T() sheet not found: ${requested}`);
+        }
+        return requested;
+      }
+      return wb.SheetNames[0];
+    })();
+
+    if (!sheetName) return { rows: [], schema: [] };
+    const ws = wb.Sheets[sheetName];
+    if (!ws) return { rows: [], schema: [] };
+
+    const header = options.header !== false;
+    if (header) {
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: null, blankrows: false });
+      const schema = rows.length > 0
+        ? Object.keys(rows[0]).map((name) => ({ name, type: "unknown" }))
+        : [];
+      return { rows, schema };
+    }
+
+    const matrix = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null, blankrows: false }) as unknown[][];
+    const width = matrix.reduce((acc, row) => Math.max(acc, Array.isArray(row) ? row.length : 0), 0);
+    const keys = Array.from({ length: width }, (_, i) => `#${i + 1}`);
+
+    const rows = matrix
+      .filter((row) => Array.isArray(row) && row.some((v) => v !== null && v !== undefined && v !== ""))
+      .map((row) => {
+        const record: Record<string, unknown> = {};
+        keys.forEach((key, idx) => {
+          record[key] = (row as unknown[])[idx] ?? null;
+        });
+        return record;
+      });
+
+    return { rows, schema: keys.map((name) => ({ name, type: "unknown" })) };
+  }
+
+  function extractExportTable(data: unknown): { rows: Record<string, unknown>[]; columns: string[] } {
+    const asRecordRows = (rows: unknown[]): Record<string, unknown>[] =>
+      rows.filter((row): row is Record<string, unknown> => Boolean(row && typeof row === "object" && !Array.isArray(row)));
+
+    if (Array.isArray(data)) {
+      const rows = asRecordRows(data);
+      const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+      return { rows, columns };
+    }
+
+    if (isDataSetLike(data)) {
+      const rows = asRecordRows(data.rows ?? []);
+      const schemaColumns = Array.isArray(data.schema) ? data.schema.map((col) => col.name) : [];
+      const resultColumns = schemaColumns.length > 0 ? schemaColumns : (rows.length > 0 ? Object.keys(rows[0]) : []);
+      return { rows, columns: resultColumns };
+    }
+
+    throw new Error("T() Excel export expects array-of-records or { rows: [...] }");
+  }
+
+  function writeExcelFile(filePath: string, data: unknown, options: ExcelIoOptions): void {
+    const { rows, columns } = extractExportTable(data);
+    const header = options.header !== false;
+
+    const jsonOpts: Record<string, unknown> = { skipHeader: !header };
+    if (columns.length > 0) {
+      jsonOpts.header = columns;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(rows, jsonOpts as never);
+    const wb = XLSX.utils.book_new();
+
+    const rawSheet = options.sheet;
+    const sheetName = typeof rawSheet === "string" && rawSheet.trim().length > 0
+      ? rawSheet
+      : typeof rawSheet === "number" && Number.isFinite(rawSheet)
+        ? `Sheet${Math.trunc(rawSheet)}`
+        : "Sheet1";
+
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+    mkdirSync(dirname(filePath), { recursive: true });
+
+    const ext = extname(filePath).toLowerCase();
+    const bookType = ext === ".xls" ? "biff8" : "xlsx";
+    const out = XLSX.write(wb, { bookType: bookType as never, type: "buffer" }) as unknown as Uint8Array;
+    writeFileSync(filePath, out);
+  }
+
+  const tFn = (path?: unknown, arg1?: unknown, arg2?: unknown): unknown => {
     if (typeof path !== "string" || path.trim().length === 0) {
       throw new Error("T() expects a path string");
     }
-    const resolved = resolveWorkspacePath(path.trim(), ctx);
-    const content = readFileSync(resolved, "utf-8");
+    const sourcePath = path.trim();
+    const resolved = resolveWorkspacePath(sourcePath, ctx);
     const ext = extname(resolved).toLowerCase();
+
+    if (ext === ".xls" || ext === ".xlsx") {
+      const isRead = arg1 === undefined || (arg1 && typeof arg1 === "object" && !Array.isArray(arg1) && !isDataSetLike(arg1));
+      if (isRead) {
+        return readExcelTable(resolved, parseExcelOptions(arg1));
+      }
+      writeExcelFile(resolved, arg1, parseExcelOptions(arg2));
+      return sourcePath;
+    }
+
+    const content = readFileSync(resolved, "utf-8");
     if (ext === ".csv") {
+      if (arg1 !== undefined) throw new Error("T() CSV does not support export");
       return parseCsvContent(content);
     }
     if (ext === ".json") {
+      if (arg1 !== undefined) throw new Error("T() JSON does not support export");
       const data = JSON.parse(content) as unknown;
       if (Array.isArray(data)) {
-        return { rows: data as Record<string, unknown>[], schema: data.length > 0 && typeof data[0] === "object" && data[0] !== null
-          ? Object.keys(data[0] as Record<string, unknown>).map((name) => ({ name, type: "unknown" }))
-          : [] };
+        return {
+          rows: data as Record<string, unknown>[],
+          schema: data.length > 0 && typeof data[0] === "object" && data[0] !== null
+            ? Object.keys(data[0] as Record<string, unknown>).map((name) => ({ name, type: "unknown" }))
+            : [],
+        };
       }
       if (data && typeof data === "object") {
         const rec = data as Record<string, unknown>;

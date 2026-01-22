@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "@esproc/core": "workspace:*",
-    "@esproc/expression": "workspace:*"
+    "@esproc/expression": "workspace:*",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "build": "bun x tsc -p tsconfig.json"
