@@ -23,6 +23,42 @@ function toDate(value: unknown): Date | null {
   return null;
 }
 
+function localDateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function isWeekend(date: Date): boolean {
+  const day = date.getDay();
+  return day === 0 || day === 6;
+}
+
+function normalizeOffDays(offDays: unknown): { holidays: Set<string>; workdays: Set<string> } {
+  const holidays = new Set<string>();
+  const workdays = new Set<string>();
+  if (!Array.isArray(offDays)) return { holidays, workdays };
+  for (const entry of offDays) {
+    const d = toDate(entry);
+    if (!d) continue;
+    const key = localDateKey(d);
+    if (isWeekend(d)) {
+      workdays.add(key);
+    } else {
+      holidays.add(key);
+    }
+  }
+  return { holidays, workdays };
+}
+
+function isWorkday(date: Date, off: { holidays: Set<string>; workdays: Set<string> }): boolean {
+  const key = localDateKey(date);
+  if (off.workdays.has(key)) return true;
+  if (off.holidays.has(key)) return false;
+  return !isWeekend(date);
+}
+
 function average(values: number[]): number | null {
   if (values.length === 0) return null;
   const sum = values.reduce((acc, v) => acc + v, 0);
@@ -136,6 +172,12 @@ const REGEX_OPTIONS = /^[acupw]+$/i;
 
 function isRegexOptionsString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && REGEX_OPTIONS.test(value);
+}
+
+const AGE_OPTIONS = /^[ym]+$/i;
+
+function isAgeOptionsString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && AGE_OPTIONS.test(value);
 }
 
 function compileRegexPattern(pattern: string, options: Set<string>, global: boolean): RegExp {
@@ -456,6 +498,96 @@ export const builtins: FunctionRegistry = {
       return d.toISOString().slice(0, 10);
     }
     return d.toISOString();
+  },
+  age: (start: unknown, endOrOptions?: unknown, options?: unknown) => {
+    const s = toDate(start);
+    if (!s) return null;
+
+    let end: Date | null;
+    let optionArg: unknown = options;
+
+    if (endOrOptions === undefined) {
+      end = new Date();
+    } else if (options === undefined && isAgeOptionsString(endOrOptions)) {
+      end = new Date();
+      optionArg = endOrOptions;
+    } else {
+      end = toDate(endOrOptions);
+    }
+
+    if (!end) return null;
+
+    const opts = parseOptions(optionArg);
+    const years = end.getFullYear() - s.getFullYear();
+    if (opts.has("y")) return years;
+    if (opts.has("m")) {
+      return years - (end.getMonth() < s.getMonth() ? 1 : 0);
+    }
+    if (end.getMonth() < s.getMonth() || (end.getMonth() === s.getMonth() && end.getDate() < s.getDate())) {
+      return years - 1;
+    }
+    return years;
+  },
+  workday: (date: unknown, diff: unknown, offDays?: unknown, options?: unknown) => {
+    const base = toDate(date);
+    if (!base) return null;
+    const delta = Math.trunc(Number(diff));
+    if (!Number.isFinite(delta)) return null;
+
+    // 'b' indicates offDays is already sorted (optimization only).
+    void parseOptions(options);
+    const off = normalizeOffDays(offDays);
+
+    const cursor = new Date(base.getTime());
+    if (delta === 0) return cursor;
+
+    const step = delta > 0 ? 1 : -1;
+    let remaining = Math.abs(delta);
+    while (remaining > 0) {
+      cursor.setDate(cursor.getDate() + step);
+      if (isWorkday(cursor, off)) {
+        remaining -= 1;
+      }
+    }
+    return cursor;
+  },
+  workdays: (begin: unknown, end: unknown, offDaysOrOptions?: unknown, options?: unknown) => {
+    const b = toDate(begin);
+    const e = toDate(end);
+    if (!b || !e) return null;
+
+    let offDays: unknown = offDaysOrOptions;
+    let optionArg: unknown = options;
+    if (typeof offDaysOrOptions === "string") {
+      offDays = undefined;
+      optionArg = offDaysOrOptions;
+    }
+
+    const opts = parseOptions(optionArg);
+    const off = normalizeOffDays(offDays);
+    const excludeEnd = opts.has("x");
+    const wantCount = opts.has("n");
+
+    const out: Date[] = [];
+    let count = 0;
+
+    const cursor = new Date(b.getTime());
+    const endTime = e.getTime();
+    const step = cursor.getTime() <= endTime ? 1 : -1;
+    const within = (time: number) => {
+      if (step > 0) return excludeEnd ? time < endTime : time <= endTime;
+      return excludeEnd ? time > endTime : time >= endTime;
+    };
+
+    while (within(cursor.getTime())) {
+      if (isWorkday(cursor, off)) {
+        if (wantCount) count += 1;
+        else out.push(new Date(cursor.getTime()));
+      }
+      cursor.setDate(cursor.getDate() + step);
+    }
+
+    return wantCount ? count : out;
   },
   sum: (arr: unknown) => {
     const values = asNumericArray(arr);
