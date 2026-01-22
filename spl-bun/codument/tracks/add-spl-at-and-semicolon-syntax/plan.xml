@@ -32,7 +32,7 @@
       </tasks>
     </phase>
 
-    <phase id="P2" name="Parser & AST" status="IN_PROGRESS">
+    <phase id="P2" name="Parser & AST" status="DONE">
       <description>Add @ and ; support in expression parser and AST.</description>
       <tasks>
         <task id="T2.1" name="Add tokenizer support for '@' and ';'" priority="high" status="DONE" commit="48a411f95">
@@ -47,16 +47,31 @@
           </subtasks>
         </task>
 
-        <task id="T2.2" name="Extend AST to carry option and argGroups" priority="high" status="TODO">
+        <task id="T2.2" name="Extend AST to carry option and argGroups" priority="high" status="DONE" commit="325aa534c">
+          <changed-key-files>
+            <file>packages/expression/src/ast.ts</file>
+            <file>packages/expression/src/parser.ts</file>
+            <file>packages/expression/__tests__/callSyntax.test.ts</file>
+          </changed-key-files>
           <subtasks>
-            <subtask id="T2.2.1" name="Write failing tests for AST shape" status="TODO" />
-            <subtask id="T2.2.2" name="Implement AST updates" status="TODO" />
-            <subtask id="T2.2.3" name="Run tests and fix" status="TODO" />
+            <subtask id="T2.2.1" name="Write failing tests for AST shape" status="DONE" />
+            <subtask id="T2.2.2" name="Implement AST updates" status="DONE" />
+            <subtask id="T2.2.3" name="Run tests and fix" status="DONE" />
           </subtasks>
         </task>
 
-        <task id="T2.3" name="Parse fn@opt(...) and obj.m@opt(...)" priority="high" status="TODO" />
-        <task id="T2.4" name="Parse semicolon argument groups in calls" priority="high" status="TODO" />
+        <task id="T2.3" name="Parse fn@opt(...) and obj.m@opt(...)" priority="high" status="DONE" commit="325aa534c">
+          <changed-key-files>
+            <file>packages/expression/src/parser.ts</file>
+            <file>packages/expression/__tests__/callSyntax.test.ts</file>
+          </changed-key-files>
+        </task>
+        <task id="T2.4" name="Parse semicolon argument groups in calls" priority="high" status="DONE" commit="325aa534c">
+          <changed-key-files>
+            <file>packages/expression/src/parser.ts</file>
+            <file>packages/expression/__tests__/callSyntax.test.ts</file>
+          </changed-key-files>
+        </task>
       </tasks>
     </phase>
 
