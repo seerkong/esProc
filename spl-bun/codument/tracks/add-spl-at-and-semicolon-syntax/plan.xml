@@ -99,15 +99,19 @@
       </tasks>
     </phase>
 
-    <phase id="P4" name="Excel T() Migration" status="TODO">
+    <phase id="P4" name="Excel T() Migration" status="IN_PROGRESS">
       <description>Update runtime Excel T() signature and migrate all call sites.</description>
       <tasks>
-        <task id="T4.1" name="Update spl-flow T() to use Java-style ; + @" priority="high" status="TODO">
+        <task id="T4.1" name="Update spl-flow T() to use Java-style ; + @" priority="high" status="DONE" commit="b4b13f48f">
+          <changed-key-files>
+            <file>packages/spl-flow/src/index.ts</file>
+            <file>packages/spl-flow/__tests__/excel.test.ts</file>
+          </changed-key-files>
           <acceptance_criteria>
-            <criterion checked="false">Supports T(path; sheet) import</criterion>
-            <criterion checked="false">Supports T(path, data; sheet) export</criterion>
-            <criterion checked="false">Supports @b header toggle (default has header)</criterion>
-            <criterion checked="false">Old options-object form fails with clear error</criterion>
+            <criterion checked="true">Supports T(path; sheet) import</criterion>
+            <criterion checked="true">Supports T(path, data; sheet) export</criterion>
+            <criterion checked="true">Supports @b header toggle (default has header)</criterion>
+            <criterion checked="true">Old options-object form fails with clear error</criterion>
           </acceptance_criteria>
         </task>
 
