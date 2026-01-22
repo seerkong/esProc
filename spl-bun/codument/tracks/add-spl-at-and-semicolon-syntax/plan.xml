@@ -129,13 +129,13 @@
       </tasks>
     </phase>
 
-    <phase id="P5" name="Validation" status="TODO">
+    <phase id="P5" name="Validation" status="DONE">
       <description>Run tests, coverage, and codument validation.</description>
       <tasks>
-        <task id="T5.1" name="Run bun unit tests (exclude Playwright)" priority="high" status="TODO" />
-        <task id="T5.2" name="Run Playwright e2e tests" priority="high" status="TODO" />
-        <task id="T5.3" name="Run bun test --coverage" priority="high" status="TODO" />
-        <task id="T5.4" name="Run codument validate --strict" priority="high" status="TODO" />
+        <task id="T5.1" name="Run bun unit tests (exclude Playwright)" priority="high" status="DONE" />
+        <task id="T5.2" name="Run Playwright e2e tests" priority="high" status="DONE" />
+        <task id="T5.3" name="Run bun test --coverage" priority="high" status="DONE" />
+        <task id="T5.4" name="Run codument validate --strict" priority="high" status="DONE" />
       </tasks>
     </phase>
   </phases>
