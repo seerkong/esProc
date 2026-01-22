@@ -34,11 +34,13 @@ const OPERATORS = [
   "|",
   ".",
   ",",
+  ";",
   "[",
   "]",
   "{",
   "}",
   ":",
+  "@",
 ];
 
 function tokenize(input: string): Token[] {
@@ -133,6 +135,49 @@ export function parseExpression(source: string): ExpressionNode {
     return null;
   };
 
+  function parseOptionAfterAt(): string | null {
+    if (!match("operator", "@")) return null;
+
+    const tok = current();
+    if (tok.type === "identifier") {
+      consume();
+      return tok.value ?? "";
+    }
+    // Allow digit-only options like @1 (SPL allows ASCII letters/digits).
+    if (tok.type === "number" && tok.value && /^[0-9]+$/.test(tok.value)) {
+      consume();
+      return tok.value;
+    }
+    throw new Error(`Expected option after '@' at position ${tok.position}`);
+  }
+
+  function parseCallArgGroups(parseArg: () => ExpressionNode): ExpressionNode[][] {
+    const groups: ExpressionNode[][] = [];
+    while (true) {
+      const group: ExpressionNode[] = [];
+
+      // Allow empty groups: `f(;"Sheet")`.
+      const isGroupEnd =
+        (current().type === "operator" && current().value === ";") ||
+        (current().type === "paren" && current().value === ")");
+      if (!isGroupEnd) {
+        group.push(parseArg());
+        while (match("operator", ",")) {
+          group.push(parseArg());
+        }
+      }
+
+      groups.push(group);
+
+      if (current().type === "operator" && current().value === ";") {
+        consume();
+        continue;
+      }
+      break;
+    }
+    return groups;
+  }
+
   function parsePrimary(): ExpressionNode {
     const tok = current();
     if (match("number")) {
@@ -148,12 +193,16 @@ export function parseExpression(source: string): ExpressionNode {
     if (tok.type === "identifier") {
       consume();
       const name = tok.value!;
+
+      // `fn@opt(...)` (SPL-style option suffix). In this phase we only accept the syntax;
+      // later tasks will store the normalized option in the AST.
+      parseOptionAfterAt();
+
       if (match("paren", "(")) {
         const args: ExpressionNode[] = [];
         if (!match("paren", ")")) {
-          do {
-            args.push(parseAssignment());
-          } while (match("operator", ","));
+          const groups = parseCallArgGroups(parseAssignment);
+          args.push(...groups.flat());
           if (!match("paren", ")")) {
             throw new Error(`Expected ')' at position ${current().position}`);
           }
@@ -226,18 +275,21 @@ export function parseExpression(source: string): ExpressionNode {
         }
         const propTok = current();
         consume();
-          if (match("paren", "(")) {
-            const args: ExpressionNode[] = [];
-            if (!match("paren", ")")) {
-              do {
-                args.push(parseOr());
-              } while (match("operator", ","));
-              if (!match("paren", ")")) {
-                throw new Error(`Expected ')' at position ${current().position}`);
-              }
-            }
-            node = { type: "member_call", object: node, method: propTok.value!, args };
 
+        // `obj.method@opt(...)` (SPL-style option suffix). In this phase we only accept
+        // the syntax; later tasks will store the normalized option in the AST.
+        parseOptionAfterAt();
+
+        if (match("paren", "(")) {
+          const args: ExpressionNode[] = [];
+          if (!match("paren", ")")) {
+            const groups = parseCallArgGroups(parseOr);
+            args.push(...groups.flat());
+            if (!match("paren", ")")) {
+              throw new Error(`Expected ')' at position ${current().position}`);
+            }
+          }
+          node = { type: "member_call", object: node, method: propTok.value!, args };
         } else {
           node = { type: "member", object: node, property: propTok.value! };
         }
