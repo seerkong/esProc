@@ -5,13 +5,13 @@
     <track_name>Add like/regex and date/math functions + demos</track_name>
     <goal>Add Phase-2 expression functions (like/regex, exp/ln/sign/gcd/lcm, age/workday/workdays) and Web-IDE grouped demos.</goal>
     <created_at>2026-01-22T03:31:00Z</created_at>
-    <updated_at>2026-01-22T20:50:57Z</updated_at>
+    <updated_at>2026-01-22T20:54:52Z</updated_at>
     <status>in_progress</status>
     <commit_mode>auto</commit_mode>
   </metadata>
 
   <phases>
-    <phase id="P1" name="Expression Builtins" status="TODO">
+    <phase id="P1" name="Expression Builtins" status="DONE">
       <description>Add missing Phase-2 built-in functions with unit tests</description>
       <tasks>
         <task id="T1.1" name="Add like() builtin" priority="high" status="DONE" commit="da6241593">
@@ -85,10 +85,10 @@
           </changed-key-files>
         </task>
 
-        <task id="T1.5" name="Coverage gate" priority="high" status="TODO">
+        <task id="T1.5" name="Coverage gate" priority="high" status="DONE">
           <acceptance_criteria>
-            <criterion checked="false">bun test --coverage passes</criterion>
-            <criterion checked="false">New code coverage >80%</criterion>
+            <criterion checked="true">bun test --coverage passes</criterion>
+            <criterion checked="true">New code coverage >80%</criterion>
           </acceptance_criteria>
         </task>
       </tasks>
