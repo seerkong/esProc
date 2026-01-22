@@ -57,6 +57,45 @@ function parseOptions(options: unknown): Set<string> {
   return new Set(options.toLowerCase().split(""));
 }
 
+function escapeRegExpChar(value: string): string {
+  // Escape characters that have special meaning in JS regex.
+  return value.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
+}
+
+function compileLikePattern(pattern: string, options: Set<string>): RegExp {
+  const sql = options.has("s");
+  const ignoreCase = options.has("c") && !sql;
+  const wildAny = sql ? "%" : "*";
+  const wildOne = sql ? "_" : "?";
+
+  let source = "^";
+  for (let i = 0; i < pattern.length; i += 1) {
+    const ch = pattern[i];
+    if (ch === "\\") {
+      const next = i + 1 < pattern.length ? pattern[i + 1] : "";
+      if (next && (next === "*" || next === "?" || next === "%" || next === "_")) {
+        source += escapeRegExpChar(next);
+        i += 1;
+        continue;
+      }
+      // Only wildcard chars are escapable per spec; treat a bare '\\' as a literal.
+      source += "\\\\";
+      continue;
+    }
+    if (ch === wildAny) {
+      source += ".*";
+      continue;
+    }
+    if (ch === wildOne) {
+      source += ".";
+      continue;
+    }
+    source += escapeRegExpChar(ch);
+  }
+  source += "$";
+  return new RegExp(source, ignoreCase ? "i" : "");
+}
+
 function jsonParse(value: unknown, options?: unknown): unknown {
   if (typeof value !== "string") return value;
   const opts = parseOptions(options);
@@ -120,7 +159,7 @@ function jsonCompat(value: unknown, options?: unknown): unknown {
 }
 
 function countValues(...args: unknown[]): number {
-  return args.reduce((acc, value) => (truthy(value) ? acc + 1 : acc), 0);
+  return args.reduce<number>((acc, value) => (truthy(value) ? acc + 1 : acc), 0);
 }
 
 function icountValues(values: unknown[]): number {
@@ -172,6 +211,12 @@ export const builtins: FunctionRegistry = {
     const se = String(search ?? "");
     const re = String(replace ?? "");
     return s.split(se).join(re);
+  },
+  like: (value: unknown, pattern: unknown, options?: unknown) => {
+    if (isNullish(value) || isNullish(pattern)) return false;
+    const opts = parseOptions(options);
+    const re = compileLikePattern(String(pattern), opts);
+    return re.test(String(value));
   },
   pos: (str: unknown, sub: unknown) => {
     const s = String(str ?? "");
