@@ -5,7 +5,7 @@
     <track_name>Add like/regex and date/math functions + demos</track_name>
     <goal>Add Phase-2 expression functions (like/regex, exp/ln/sign/gcd/lcm, age/workday/workdays) and Web-IDE grouped demos.</goal>
     <created_at>2026-01-22T03:31:00Z</created_at>
-    <updated_at>2026-01-22T20:45:26Z</updated_at>
+    <updated_at>2026-01-22T20:50:57Z</updated_at>
     <status>in_progress</status>
     <commit_mode>auto</commit_mode>
   </metadata>
@@ -67,18 +67,22 @@
           </changed-key-files>
         </task>
 
-        <task id="T1.4" name="Add date builtins age/workday/workdays" priority="high" status="TODO">
+        <task id="T1.4" name="Add date builtins age/workday/workdays" priority="high" status="DONE" commit="6c92870c7">
           <acceptance_criteria>
-            <criterion checked="false">age() supports options y/m and default behavior</criterion>
-            <criterion checked="false">workday() shifts by workdays with optional offDays</criterion>
-            <criterion checked="false">workdays() returns list or count (option n) and supports option x</criterion>
-            <criterion checked="false">Unit tests cover edge cases (direction, endpoints, offDays)</criterion>
+            <criterion checked="true">age() supports options y/m and default behavior</criterion>
+            <criterion checked="true">workday() shifts by workdays with optional offDays</criterion>
+            <criterion checked="true">workdays() returns list or count (option n) and supports option x</criterion>
+            <criterion checked="true">Unit tests cover edge cases (direction, endpoints, offDays)</criterion>
           </acceptance_criteria>
           <subtasks>
-            <subtask id="T1.4.1" name="Write failing tests for age/workday/workdays" status="TODO" />
-            <subtask id="T1.4.2" name="Implement age/workday/workdays" status="TODO" />
-            <subtask id="T1.4.3" name="Run tests and fix" status="TODO" />
+            <subtask id="T1.4.1" name="Write failing tests for age/workday/workdays" status="DONE" />
+            <subtask id="T1.4.2" name="Implement age/workday/workdays" status="DONE" />
+            <subtask id="T1.4.3" name="Run tests and fix" status="DONE" />
           </subtasks>
+          <changed-key-files>
+            <file>packages/expression/src/functions.ts</file>
+            <file>packages/expression/__tests__/datePhase2.test.ts</file>
+          </changed-key-files>
         </task>
 
         <task id="T1.5" name="Coverage gate" priority="high" status="TODO">
