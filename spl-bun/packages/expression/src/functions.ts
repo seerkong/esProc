@@ -41,6 +41,42 @@ function asNumericArray(value: unknown): number[] {
   return Number.isNaN(num) ? [] : [num];
 }
 
+function integerArgs(...args: unknown[]): number[] {
+  const out: number[] = [];
+  for (const arg of args) {
+    if (Array.isArray(arg)) {
+      for (const item of arg) {
+        const n = toNumber(item);
+        if (!Number.isFinite(n)) continue;
+        out.push(Math.trunc(n));
+      }
+      continue;
+    }
+    const n = toNumber(arg);
+    if (!Number.isFinite(n)) continue;
+    out.push(Math.trunc(n));
+  }
+  return out;
+}
+
+function gcdInt(a: number, b: number): number {
+  let x = Math.abs(Math.trunc(a));
+  let y = Math.abs(Math.trunc(b));
+  while (y !== 0) {
+    const t = y;
+    y = x % y;
+    x = t;
+  }
+  return x;
+}
+
+function lcmInt(a: number, b: number): number {
+  const x = Math.trunc(a);
+  const y = Math.trunc(b);
+  if (x === 0 || y === 0) return 0;
+  return Math.abs((x / gcdInt(x, y)) * y);
+}
+
 function compileMapper(expr: string): (item: unknown) => unknown {
   const { compileExpression } = require("./evaluator") as typeof import("./evaluator");
   const compiled = compileExpression(expr);
@@ -199,8 +235,10 @@ export const builtins: FunctionRegistry = {
   sin: (v: unknown) => Math.sin(toNumber(v)),
   cos: (v: unknown) => Math.cos(toNumber(v)),
   tan: (v: unknown) => Math.tan(toNumber(v)),
+  exp: (v: unknown) => Math.exp(toNumber(v)),
   log: (v: unknown) => Math.log(toNumber(v)),
   log10: (v: unknown) => Math.log10(toNumber(v)),
+  ln: (v: unknown) => Math.log(toNumber(v)),
   ceil: (v: unknown) => Math.ceil(toNumber(v)),
   floor: (v: unknown) => Math.floor(toNumber(v)),
   round: (v: unknown, digits?: unknown) => {
@@ -209,6 +247,33 @@ export const builtins: FunctionRegistry = {
     if (d === 0) return Math.round(val);
     const factor = Math.pow(10, d);
     return Math.round(val * factor) / factor;
+  },
+  sign: (v: unknown) => {
+    if (isNullish(v)) return null;
+    const num = toNumber(v);
+    if (!Number.isFinite(num)) return null;
+    if (num === 0) return 0;
+    return num > 0 ? 1 : -1;
+  },
+  gcd: (...args: unknown[]) => {
+    const values = integerArgs(...args);
+    if (values.length === 0) return 0;
+    if (values.some((v) => v < 0)) return 0;
+    let acc = 0;
+    for (const v of values) {
+      acc = gcdInt(acc, v);
+    }
+    return acc;
+  },
+  lcm: (...args: unknown[]) => {
+    const values = integerArgs(...args);
+    if (values.length === 0) return 0;
+    if (values.some((v) => v <= 0)) return 0;
+    let acc = 1;
+    for (const v of values) {
+      acc = lcmInt(acc, v);
+    }
+    return acc;
   },
   rand: () => Math.random(),
   len: (v: unknown) =>
