@@ -75,12 +75,27 @@
       </tasks>
     </phase>
 
-    <phase id="P3" name="Evaluator Dispatch" status="TODO">
+    <phase id="P3" name="Evaluator Dispatch" status="DONE">
       <description>Deliver parsed option and groups to function/member implementations.</description>
       <tasks>
-        <task id="T3.1" name="Dispatch options for function calls" priority="high" status="TODO" />
-        <task id="T3.2" name="Dispatch options for member calls" priority="high" status="TODO" />
-        <task id="T3.3" name="Define and implement group flattening/default rules" priority="high" status="TODO" />
+        <task id="T3.1" name="Dispatch options for function calls" priority="high" status="DONE" commit="b28ec9108">
+          <changed-key-files>
+            <file>packages/expression/src/evaluator.ts</file>
+            <file>packages/expression/__tests__/dispatch.test.ts</file>
+          </changed-key-files>
+        </task>
+        <task id="T3.2" name="Dispatch options for member calls" priority="high" status="DONE" commit="b28ec9108">
+          <changed-key-files>
+            <file>packages/expression/src/evaluator.ts</file>
+            <file>packages/expression/__tests__/dispatch.test.ts</file>
+          </changed-key-files>
+        </task>
+        <task id="T3.3" name="Define and implement group flattening/default rules" priority="high" status="DONE" commit="b28ec9108">
+          <changed-key-files>
+            <file>packages/expression/src/evaluator.ts</file>
+            <file>packages/expression/__tests__/dispatch.test.ts</file>
+          </changed-key-files>
+        </task>
       </tasks>
     </phase>
 
