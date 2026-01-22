@@ -5,7 +5,7 @@
     <track_name>Add like/regex and date/math functions + demos</track_name>
     <goal>Add Phase-2 expression functions (like/regex, exp/ln/sign/gcd/lcm, age/workday/workdays) and Web-IDE grouped demos.</goal>
     <created_at>2026-01-22T03:31:00Z</created_at>
-    <updated_at>2026-01-22T20:54:52Z</updated_at>
+    <updated_at>2026-01-22T21:04:44Z</updated_at>
     <status>in_progress</status>
     <commit_mode>auto</commit_mode>
   </metadata>
@@ -94,12 +94,27 @@
       </tasks>
     </phase>
 
-    <phase id="P2" name="Web-IDE Demos" status="TODO">
+    <phase id="P2" name="Web-IDE Demos" status="DONE">
       <description>Add grouped demos showcasing the new functions</description>
       <tasks>
-        <task id="T2.1" name="Add grouped string demo (like/regex)" priority="high" status="TODO" />
-        <task id="T2.2" name="Add grouped math demo (exp/ln/sign/gcd/lcm)" priority="high" status="TODO" />
-        <task id="T2.3" name="Add grouped date demo (age/workday/workdays)" priority="high" status="TODO" />
+        <task id="T2.1" name="Add grouped string demo (like/regex)" priority="high" status="DONE" commit="b3976f656">
+          <changed-key-files>
+            <file>packages/web-ide/src/pages/SplIde.vue</file>
+            <file>packages/web-ide/__tests__/e2e/expression-execution.spec.ts</file>
+          </changed-key-files>
+        </task>
+        <task id="T2.2" name="Add grouped math demo (exp/ln/sign/gcd/lcm)" priority="high" status="DONE" commit="b3976f656">
+          <changed-key-files>
+            <file>packages/web-ide/src/pages/SplIde.vue</file>
+            <file>packages/web-ide/__tests__/e2e/expression-execution.spec.ts</file>
+          </changed-key-files>
+        </task>
+        <task id="T2.3" name="Add grouped date demo (age/workday/workdays)" priority="high" status="DONE" commit="b3976f656">
+          <changed-key-files>
+            <file>packages/web-ide/src/pages/SplIde.vue</file>
+            <file>packages/web-ide/__tests__/e2e/expression-execution.spec.ts</file>
+          </changed-key-files>
+        </task>
       </tasks>
     </phase>
 
