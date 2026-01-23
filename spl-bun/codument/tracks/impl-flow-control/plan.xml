@@ -11,7 +11,7 @@
   </metadata>
 
   <phases>
-    <phase id="P1" name="Spec & Design Lock" status="IN_PROGRESS">
+    <phase id="P1" name="Spec & Design Lock" status="DONE">
       <description>Lock the exact SPL subset and the TypeScript compatibility rules.</description>
       <tasks>
         <task id="T1.1" name="Confirm supported statements + exclusions" priority="high" status="DONE" commit="b2b694e97">
@@ -29,8 +29,16 @@
             <subtask id="T1.1.2" name="Decide if '#A1' loop-seq syntax is in scope" status="DONE" />
           </subtasks>
         </task>
-        <task id="T1.2" name="Confirm grid + no-leading-'=' compatibility rules" priority="high" status="TODO">
+        <task id="T1.2" name="Confirm grid + no-leading-'=' compatibility rules" priority="high" status="DONE" commit="46f6197db">
           Define how TS flow treats plain cells (default expression) and whether to accept Java-style '='/'>' prefixes as optional compatibility.
+          <changed-key-files>
+            <file>codument/tracks/impl-flow-control/spec.md</file>
+            <file>codument/tracks/impl-flow-control/design.md</file>
+          </changed-key-files>
+          <acceptance_criteria>
+            <criterion id="T1.2-AC1" checked="true">Spec defines plain cell handling (default expression) and explicitly accepts leading '=' and '>' prefixes without requiring them.</criterion>
+            <criterion id="T1.2-AC2" checked="true">Spec defines comment cell skipping and includes compatibility scenarios.</criterion>
+          </acceptance_criteria>
         </task>
       </tasks>
     </phase>
