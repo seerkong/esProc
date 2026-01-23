@@ -65,15 +65,23 @@
       </tasks>
     </phase>
 
-    <phase id="P3" name="Execution Engine Core" status="TODO">
+    <phase id="P3" name="Execution Engine Core" status="IN_PROGRESS">
       <description>Port PgmCellSet-style navigation (cur position, setNext, block boundary, stack).</description>
       <tasks>
-        <task id="T3.1" name="Implement getCodeBlockEndRow + setNext" priority="high" status="TODO">
+        <task id="T3.1" name="Implement getCodeBlockEndRow + setNext" priority="high" status="DONE" commit="ad868d43a">
           Implement indentation-scoped blocks and deterministic navigation across row/col while skipping blank/comment cells.
+          <changed-key-files>
+            <file>packages/spl-flow/src/flow/navigation.ts</file>
+            <file>packages/spl-flow/__tests__/navigation.test.ts</file>
+          </changed-key-files>
+          <acceptance_criteria>
+            <criterion id="T3.1-AC1" checked="true">getCodeBlockEndRow closes blocks only on non-blank/non-comment cells at same-or-less indentation.</criterion>
+            <criterion id="T3.1-AC2" checked="true">setNext skips blank/comment cells and advances deterministically across row/col.</criterion>
+          </acceptance_criteria>
           <subtasks>
-            <subtask id="T3.1.1" name="Write failing tests for block boundary" status="TODO" />
-            <subtask id="T3.1.2" name="Implement block boundary + navigation" status="TODO" />
-            <subtask id="T3.1.3" name="Run tests and fix" status="TODO" />
+            <subtask id="T3.1.1" name="Write failing tests for block boundary" status="DONE" />
+            <subtask id="T3.1.2" name="Implement block boundary + navigation" status="DONE" />
+            <subtask id="T3.1.3" name="Run tests and fix" status="DONE" />
           </subtasks>
         </task>
         <task id="T3.2" name="Preserve backward-compatible sequential behavior" priority="high" status="TODO">
