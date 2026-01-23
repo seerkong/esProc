@@ -5,8 +5,8 @@
     <track_name>Implement SPL(Java) flow control in TypeScript (spl-flow)</track_name>
     <goal>Add grid-based flow execution and SPL control-flow statements (if/for/break/continue/goto/func/return/result/end/try) to packages/spl-flow, aligning behavior with Java SPL while keeping Web-IDE's no-leading-'=' input style.</goal>
     <created_at>2026-01-23T10:07:24Z</created_at>
-    <updated_at>2026-01-24T14:06:54Z</updated_at>
-    <status>in_progress</status>
+    <updated_at>2026-01-23T19:16:27Z</updated_at>
+    <status>completed</status>
     <commit_mode>auto</commit_mode>
   </metadata>
 
@@ -150,18 +150,18 @@
       </tasks>
     </phase>
 
-    <phase id="P5" name="For / Break / Continue" status="IN_PROGRESS">
+    <phase id="P5" name="For / Break / Continue" status="DONE">
       <description>Implement loop variants and loop-control statements.</description>
       <tasks>
-        <task id="T5.1" name="Implement for loop variants" priority="high" status="IN_PROGRESS">
+        <task id="T5.1" name="Implement for loop variants" priority="high" status="DONE" commit="8d41fb837">
           Support for (infinite), for n, for start,end[,step], for sequenceExpr, for conditionExpr.
           <subtasks>
-            <subtask id="T5.1.1" name="Write failing tests for each loop variant" status="IN_PROGRESS" />
-            <subtask id="T5.1.2" name="Implement loop frames + iteration" status="TODO" />
-            <subtask id="T5.1.3" name="Run tests and fix" status="TODO" />
+            <subtask id="T5.1.1" name="Write failing tests for each loop variant" status="DONE" />
+            <subtask id="T5.1.2" name="Implement loop frames + iteration" status="DONE" />
+            <subtask id="T5.1.3" name="Run tests and fix" status="DONE" />
           </subtasks>
         </task>
-        <task id="T5.2" name="Implement break/continue with optional target" priority="high" status="TODO">
+        <task id="T5.2" name="Implement break/continue with optional target" priority="high" status="DONE" commit="8d41fb837">
           Support break/continue on nearest loop and break/continue targeting outer loop by cellRef.
         </task>
       </tasks>
@@ -217,12 +217,12 @@
       </tasks>
     </phase>
 
-    <phase id="P9" name="Validation" status="TODO">
+    <phase id="P9" name="Validation" status="DONE">
       <description>Run tests/coverage and codument validation.</description>
       <tasks>
-        <task id="T9.1" name="Run bun unit tests" priority="high" status="TODO" />
-        <task id="T9.2" name="Run bun test --coverage" priority="high" status="TODO" />
-        <task id="T9.3" name="Run codument validate --strict" priority="high" status="TODO" />
+        <task id="T9.1" name="Run bun unit tests" priority="high" status="DONE" />
+        <task id="T9.2" name="Run bun test --coverage" priority="high" status="DONE" />
+        <task id="T9.3" name="Run codument validate --strict" priority="high" status="DONE" />
       </tasks>
     </phase>
   </phases>
