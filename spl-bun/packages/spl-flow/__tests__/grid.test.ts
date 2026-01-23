@@ -31,6 +31,8 @@ describe("spl-flow grid model", () => {
       { row: 9, col: "A", expr: "elseif x == 0" },
       { row: 10, col: "A", expr: "continue" },
       { row: 11, col: "A", expr: "if(1==1, 1, 2)" },
+      // Keyword-like identifiers should still work as assignment targets.
+      { row: 12, col: "A", expr: "end = 1" },
     ];
 
     const grid = buildFlowGrid(cells);
@@ -54,6 +56,10 @@ describe("spl-flow grid model", () => {
 
     // `if(...)` is an expression function call, not a statement command.
     expect(grid.getCellByRef("A11")?.kind).toBe("expression");
+
+    // `end = 1` assigns to variable `end`, not the `end` command.
+    expect(grid.getCellByRef("A12")?.kind).toBe("expression");
+    expect(grid.getCellByRef("A12")?.normalizedExpr).toBe("end = 1");
   });
 
   test("comment cells truncate the remainder of the row", () => {

@@ -124,6 +124,13 @@ export function parseCommandCell(textInput: string): FlowCommand | null {
   const keyword = keywordMatch[1].toLowerCase();
   const rawArgs = text.slice(keywordMatch[0].length).trim();
 
+  // Disambiguate statement keywords vs. identifiers used in assignments.
+  // Example: `end = datetime(...)` should remain an expression assigning to a variable named `end`,
+  // not the `end` flow-control command.
+  if (/^(=|\+=|-=|\*=|\/=|%=)/.test(rawArgs)) {
+    return null;
+  }
+
   switch (keyword) {
     case "if":
       return { kind: "if", rawArgs };

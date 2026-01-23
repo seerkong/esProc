@@ -23,14 +23,14 @@ export interface CsvConfig {
   path: string;
   delimiter?: string;
   hasHeader?: boolean;
-  encoding?: string;
+  encoding?: BufferEncoding;
 }
 
 export interface JsonConfig {
   type: "json";
   name: string;
   path: string;
-  encoding?: string;
+  encoding?: BufferEncoding;
   arrayPath?: string;
 }
 

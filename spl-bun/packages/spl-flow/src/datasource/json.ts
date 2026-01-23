@@ -1,12 +1,15 @@
 import { readFileSync } from "fs";
-import { Database } from "bun:sqlite";
+import { Database, type SQLQueryBindings } from "bun:sqlite";
 import type { DataSource, JsonConfig, QueryResult } from "./types";
+import { coerceSqliteBindingValue, normalizeSqliteParams } from "./sqlite-bindings";
+
+type LoadedJsonData = { columns: string[]; rows: SQLQueryBindings[][] };
 
 export class JsonDataSource implements DataSource {
   readonly type = "json" as const;
   readonly name: string;
   private readonly config: JsonConfig;
-  private data: QueryResult | null = null;
+  private data: LoadedJsonData | null = null;
 
   constructor(config: JsonConfig) {
     this.name = config.name;
@@ -23,11 +26,10 @@ export class JsonDataSource implements DataSource {
     for (const row of data.rows) {
       insertStmt.run(...row);
     }
-    const stmt = tempDb.query(sql);
-    const rows = params ? stmt.all(...params) : stmt.all();
-    const columns = rows.length > 0
-      ? Object.keys(rows[0] as Record<string, unknown>)
-      : stmt.columns().map((col) => col.name);
+    const stmt = tempDb.query<Record<string, unknown>, SQLQueryBindings[]>(sql);
+    const bindings = normalizeSqliteParams(params);
+    const rows = bindings ? stmt.all(...bindings) : stmt.all();
+    const columns = rows.length > 0 ? Object.keys(rows[0]) : stmt.columnNames;
     const rowArrays = rows.map((row) => columns.map((col) => (row as Record<string, unknown>)[col]));
     tempDb.close();
     return { columns, rows: rowArrays };
@@ -37,7 +39,7 @@ export class JsonDataSource implements DataSource {
     this.data = null;
   }
 
-  private loadData(): QueryResult {
+  private loadData(): LoadedJsonData {
     if (this.data) return this.data;
     const content = readFileSync(this.config.path, this.config.encoding || "utf-8");
     const jsonData = JSON.parse(content) as unknown;
@@ -61,10 +63,13 @@ export class JsonDataSource implements DataSource {
       if (typeof record === "object" && record !== null) {
         return columns.map((col) => {
           const value = (record as Record<string, unknown>)[col];
-          return value !== null && typeof value === "object" ? JSON.stringify(value) : value;
+          if (value !== null && typeof value === "object") {
+            return coerceSqliteBindingValue(JSON.stringify(value));
+          }
+          return coerceSqliteBindingValue(value);
         });
       }
-      return [record];
+      return [coerceSqliteBindingValue(record)];
     });
     this.data = { columns, rows };
     return this.data;

@@ -1,12 +1,15 @@
 import { readFileSync } from "fs";
-import { Database } from "bun:sqlite";
+import { Database, type SQLQueryBindings } from "bun:sqlite";
 import type { CsvConfig, DataSource, QueryResult } from "./types";
+import { normalizeSqliteParams } from "./sqlite-bindings";
+
+type LoadedCsvData = { columns: string[]; rows: string[][] };
 
 export class CsvDataSource implements DataSource {
   readonly type = "csv" as const;
   readonly name: string;
   private readonly config: CsvConfig;
-  private data: QueryResult | null = null;
+  private data: LoadedCsvData | null = null;
 
   constructor(config: CsvConfig) {
     this.name = config.name;
@@ -23,11 +26,10 @@ export class CsvDataSource implements DataSource {
     for (const row of data.rows) {
       insertStmt.run(...row);
     }
-    const stmt = tempDb.query(sql);
-    const rows = params ? stmt.all(...params) : stmt.all();
-    const columns = rows.length > 0
-      ? Object.keys(rows[0] as Record<string, unknown>)
-      : stmt.columns().map((col) => col.name);
+    const stmt = tempDb.query<Record<string, unknown>, SQLQueryBindings[]>(sql);
+    const bindings = normalizeSqliteParams(params);
+    const rows = bindings ? stmt.all(...bindings) : stmt.all();
+    const columns = rows.length > 0 ? Object.keys(rows[0]) : stmt.columnNames;
     const rowArrays = rows.map((row) => columns.map((col) => (row as Record<string, unknown>)[col]));
     tempDb.close();
     return { columns, rows: rowArrays };
@@ -37,7 +39,7 @@ export class CsvDataSource implements DataSource {
     this.data = null;
   }
 
-  private loadData(): QueryResult {
+  private loadData(): LoadedCsvData {
     if (this.data) return this.data;
     const content = readFileSync(this.config.path, this.config.encoding || "utf-8");
     const delimiter = this.config.delimiter || ",";
