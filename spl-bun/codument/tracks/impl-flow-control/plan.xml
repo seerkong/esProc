@@ -100,15 +100,24 @@
       </tasks>
     </phase>
 
-    <phase id="P4" name="If / ElseIf / Else" status="TODO">
+    <phase id="P4" name="If / ElseIf / Else" status="DONE">
       <description>Implement conditional branching with both same-row and multi-row else/elseif forms.</description>
       <tasks>
-        <task id="T4.1" name="Implement if/elseif/else dispatch" priority="high" status="TODO">
+        <task id="T4.1" name="Implement if/elseif/else dispatch" priority="high" status="DONE" commit="9b20e5389">
           Add command parsing and execution for if/elseif/else, including branch search and skip rules.
+          <changed-key-files>
+            <file>packages/spl-flow/src/index.ts</file>
+            <file>packages/spl-flow/__tests__/if.test.ts</file>
+          </changed-key-files>
+          <acceptance_criteria>
+            <criterion id="T4.1-AC1" checked="true">Multi-row if/elseif/else selects the first matching branch and skips the rest.</criterion>
+            <criterion id="T4.1-AC2" checked="true">Same-row if/else form is supported and non-taken branch cells are not evaluated (scope remains unset).</criterion>
+            <criterion id="T4.1-AC3" checked="true">Both 'elseif' and 'else if' forms are accepted.</criterion>
+          </acceptance_criteria>
           <subtasks>
-            <subtask id="T4.1.1" name="Write failing tests for if-else chains" status="TODO" />
-            <subtask id="T4.1.2" name="Implement branch evaluation" status="TODO" />
-            <subtask id="T4.1.3" name="Run tests and fix" status="TODO" />
+            <subtask id="T4.1.1" name="Write failing tests for if-else chains" status="DONE" />
+            <subtask id="T4.1.2" name="Implement branch evaluation" status="DONE" />
+            <subtask id="T4.1.3" name="Run tests and fix" status="DONE" />
           </subtasks>
         </task>
       </tasks>
