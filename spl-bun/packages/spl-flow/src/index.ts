@@ -1231,6 +1231,44 @@ export async function evaluateFlow(
       if (cur.colIndex <= indentColIndex) break;
 
       const cell = grid.getCell(cur.row, cur.colIndex);
+
+      // Expression errors are normally recorded as error cells. Inside a try block,
+      // treat them as caught: store the message in the try cell and keep overall
+      // execution OK.
+      if (cell.kind === "expression") {
+        const expression = (cell.normalizedExpr ?? "").trim();
+        if (expression.length === 0) {
+          scope[tryCell.cellRef] = "Empty expression";
+          recordOk(tryCell.cellRef, tryCell.row, tryCell.col, rawExpr, "Empty expression");
+          return { kind: "next", next: nextAfterBlock };
+        }
+        try {
+          const value = await evalExpression(expression);
+          scope[cell.cellRef] = value;
+
+          const queryResult = toQueryResult(value);
+          if (queryResult) {
+            lastQuery = queryResult;
+          }
+
+          recordOk(cell.cellRef, cell.row, cell.col, cell.raw ?? "", value);
+          if (funcFrames.length > 0) {
+            funcFrames[funcFrames.length - 1].lastValue = value;
+          }
+        } catch (error) {
+          if (error instanceof FlowControlError) {
+            return { kind: "signal", signal: error.signal };
+          }
+          const message = error instanceof Error ? error.message : String(error);
+          scope[tryCell.cellRef] = message;
+          recordOk(tryCell.cellRef, tryCell.row, tryCell.col, rawExpr, message);
+          return { kind: "next", next: nextAfterBlock };
+        }
+
+        cur = nextAfter(cur);
+        continue;
+      }
+
       let outcome: StepOutcome;
       try {
         outcome = await executeAt(cur, cell);
@@ -1261,6 +1299,8 @@ export async function evaluateFlow(
       const evaluation = evalByRef.get(cell.cellRef);
       if (evaluation?.status === "error") {
         const message = evaluation.error ?? "";
+        // Error is caught by try; do not surface it as a failing cell.
+        evalByRef.delete(cell.cellRef);
         scope[tryCell.cellRef] = message;
         recordOk(tryCell.cellRef, tryCell.row, tryCell.col, rawExpr, message);
         return { kind: "next", next: nextAfterBlock };

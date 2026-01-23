@@ -202,17 +202,25 @@ const app = new Elysia()
       },
     });
 
-    const { cells, lastQuery } = await evaluateFlow(expressions, {
-      connections,
-      dataSourceConfigs,
-      defaultDbPath: DB_PATH,
-      workspaceRoot: WORKSPACE_ROOT,
-      scope: baseScope,
-      adapters: {
-        sqliteQuery: executeAdapter,
-        sqliteExecute: executeMutationAdapter,
-      },
-    });
+    let flowResult: Awaited<ReturnType<typeof evaluateFlow>>;
+    try {
+      flowResult = await evaluateFlow(expressions, {
+        connections,
+        dataSourceConfigs,
+        defaultDbPath: DB_PATH,
+        workspaceRoot: WORKSPACE_ROOT,
+        scope: baseScope,
+        adapters: {
+          sqliteQuery: executeAdapter,
+          sqliteExecute: executeMutationAdapter,
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { status: "error", error: message };
+    }
+
+    const { cells, lastQuery } = flowResult;
 
     const mappedCells: ExecuteCellResult[] = cells.map((cell) => ({
       expr: cell.expr,

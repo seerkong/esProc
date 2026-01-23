@@ -113,4 +113,30 @@ describe("web-server DSL execution (sqlite integration)", () => {
     expect(String(result.error)).toContain("Connection 'unknown' not found");
   });
 
+  test("try captures errors without failing the response", async () => {
+    const result = await postExecute({
+      flowDef: [
+        { row: 1, col: "A", expr: "try" },
+        { row: 2, col: "B", expr: "unknownFunc()" },
+        { row: 3, col: "A", expr: 'rows = [ { name: "try", value: A1 } ]' },
+        { row: 4, col: "A", expr: 'out = { columns: ["name", "value"], rows: rows }' },
+        { row: 5, col: "A", expr: "out" },
+      ],
+    });
+
+    expect(result.status).toBe("ok");
+    expect(result.data.columns).toEqual(["name", "value"]);
+    expect(result.data.rows[0]?.name).toBe("try");
+    expect(String(result.data.rows[0]?.value ?? "")).not.toBe("");
+    expect(result.cells.every((cell: any) => cell.status === "ok")).toBe(true);
+  });
+
+  test("end terminates with a structured error message", async () => {
+    const result = await postExecute({
+      flowDef: [{ row: 1, col: "A", expr: 'end "boom"' }],
+    });
+    expect(result.status).toBe("error");
+    expect(String(result.error)).toContain("boom");
+  });
+
 });
