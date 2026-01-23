@@ -43,15 +43,23 @@
       </tasks>
     </phase>
 
-    <phase id="P2" name="Flow Program Model" status="TODO">
+    <phase id="P2" name="Flow Program Model" status="DONE">
       <description>Introduce cell model + classification + grid index (no behavior changes yet).</description>
       <tasks>
-        <task id="T2.1" name="Add cell classification + grid index" priority="high" status="TODO">
+        <task id="T2.1" name="Add cell classification + grid index" priority="high" status="DONE" commit="129893835">
           Build a normalized grid representation from FlowCell[] and classify cells as blank/comment/expression/command.
+          <changed-key-files>
+            <file>packages/spl-flow/src/flow/grid.ts</file>
+            <file>packages/spl-flow/__tests__/grid.test.ts</file>
+          </changed-key-files>
+          <acceptance_criteria>
+            <criterion id="T2.1-AC1" checked="true">FlowGrid normalizes row/col into cellRef and can lookup by cellRef or (row,col).</criterion>
+            <criterion id="T2.1-AC2" checked="true">Cells are classified as blank/comment/expression/command with correct normalization (prefix stripping, else-if mapping, continue alias).</criterion>
+          </acceptance_criteria>
           <subtasks>
-            <subtask id="T2.1.1" name="Write failing tests for classification" status="TODO" />
-            <subtask id="T2.1.2" name="Implement classification + grid lookup" status="TODO" />
-            <subtask id="T2.1.3" name="Run tests and fix" status="TODO" />
+            <subtask id="T2.1.1" name="Write failing tests for classification" status="DONE" />
+            <subtask id="T2.1.2" name="Implement classification + grid lookup" status="DONE" />
+            <subtask id="T2.1.3" name="Run tests and fix" status="DONE" />
           </subtasks>
         </task>
       </tasks>
