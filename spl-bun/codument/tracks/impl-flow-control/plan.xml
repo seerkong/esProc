@@ -3,9 +3,9 @@
   <metadata>
     <track_id>impl-flow-control</track_id>
     <track_name>Implement SPL(Java) flow control in TypeScript (spl-flow)</track_name>
-    <goal>Add grid-based flow execution and SPL control-flow statements (if/for/break/next/goto/func/return/try) to packages/spl-flow, aligning behavior with Java SPL while keeping Web-IDE's no-leading-'=' input style.</goal>
+    <goal>Add grid-based flow execution and SPL control-flow statements (if/for/break/continue/goto/func/return/result/end/try) to packages/spl-flow, aligning behavior with Java SPL while keeping Web-IDE's no-leading-'=' input style.</goal>
     <created_at>2026-01-23T10:07:24Z</created_at>
-    <updated_at>2026-01-23T10:07:24Z</updated_at>
+    <updated_at>2026-01-24T14:06:54Z</updated_at>
     <status>in_progress</status>
     <commit_mode>auto</commit_mode>
   </metadata>
@@ -43,7 +43,7 @@
       </tasks>
     </phase>
 
-    <phase id="P2" name="Flow Program Model" status="IN_PROGRESS">
+    <phase id="P2" name="Flow Program Model" status="DONE">
       <description>Introduce cell model + classification + grid index (no behavior changes yet).</description>
       <tasks>
         <task id="T2.1" name="Add cell classification + grid index" priority="high" status="DONE" commit="129893835">
@@ -63,7 +63,7 @@
           </subtasks>
         </task>
 
-        <task id="T2.2" name="Enforce TS dialect row constraints" priority="high" status="TODO">
+        <task id="T2.2" name="Enforce TS dialect row constraints" priority="high" status="DONE" commit="8d41fb837">
           Enforce TypeScript dialect constraints:
           - Only `//` starts a comment cell; single '/' is not a comment.
           - A comment cell truncates the rest of the row (cells to its right are ignored).
@@ -73,8 +73,8 @@
             <file>packages/spl-flow/__tests__/grid.test.ts</file>
           </changed-key-files>
           <acceptance_criteria>
-            <criterion id="T2.2-AC1" checked="false">`//` is the only comment marker and truncates the row to the right.</criterion>
-            <criterion id="T2.2-AC2" checked="false">Evaluation fails with a clear error when multiple executable cells exist in the same row.</criterion>
+            <criterion id="T2.2-AC1" checked="true">`//` is the only comment marker and truncates the row to the right.</criterion>
+            <criterion id="T2.2-AC2" checked="true">Evaluation fails with a clear error when multiple executable cells exist in the same row.</criterion>
           </acceptance_criteria>
         </task>
       </tasks>
@@ -115,7 +115,7 @@
       </tasks>
     </phase>
 
-    <phase id="P4" name="If / ElseIf / Else" status="IN_PROGRESS">
+    <phase id="P4" name="If / ElseIf / Else" status="DONE">
       <description>Implement conditional branching in the row-unique dialect (multi-row branches + indented blocks).</description>
       <tasks>
         <task id="T4.1" name="Implement if/elseif/else dispatch" priority="high" status="DONE" commit="9b20e5389">
@@ -136,15 +136,15 @@
           </subtasks>
         </task>
 
-        <task id="T4.2" name="Align if/elseif/else to row-unique dialect" priority="high" status="TODO">
+        <task id="T4.2" name="Align if/elseif/else to row-unique dialect" priority="high" status="DONE" commit="8d41fb837">
           Drop same-row if/else chains. Require one executable statement per row (excluding `//` comments) and use multi-row branches + indented blocks.
           <changed-key-files>
             <file>packages/spl-flow/src/index.ts</file>
             <file>packages/spl-flow/__tests__/if.test.ts</file>
           </changed-key-files>
           <acceptance_criteria>
-            <criterion id="T4.2-AC1" checked="false">if/elseif/else works using multi-row, indented-block form only.</criterion>
-            <criterion id="T4.2-AC2" checked="false">Same-row branch forms are rejected by the row-unique validation.</criterion>
+            <criterion id="T4.2-AC1" checked="true">if/elseif/else works using multi-row, indented-block form only.</criterion>
+            <criterion id="T4.2-AC2" checked="true">Same-row branch forms are rejected by the row-unique validation.</criterion>
           </acceptance_criteria>
         </task>
       </tasks>
@@ -167,24 +167,24 @@
       </tasks>
     </phase>
 
-    <phase id="P6" name="Goto" status="TODO">
+    <phase id="P6" name="Goto" status="DONE">
       <description>Implement goto with safety constraints.</description>
       <tasks>
-        <task id="T6.1" name="Implement goto cellRef jump" priority="high" status="TODO">
+        <task id="T6.1" name="Implement goto cellRef jump" priority="high" status="DONE" commit="7e58e04c7">
           Implement goto and enforce safety rules (no jump into deeper indentation / loop body).
           <subtasks>
-            <subtask id="T6.1.1" name="Write failing tests for goto" status="TODO" />
-            <subtask id="T6.1.2" name="Implement goto + validation" status="TODO" />
-            <subtask id="T6.1.3" name="Run tests and fix" status="TODO" />
+            <subtask id="T6.1.1" name="Write failing tests for goto" status="DONE" />
+            <subtask id="T6.1.2" name="Implement goto + validation" status="DONE" />
+            <subtask id="T6.1.3" name="Run tests and fix" status="DONE" />
           </subtasks>
         </task>
       </tasks>
     </phase>
 
-    <phase id="P7" name="Subroutines + Result/End" status="TODO">
+    <phase id="P7" name="Subroutines + Result/End" status="DONE">
       <description>Implement func (subroutines)/return/result/end; support func(masterCell, ...) invocation semantics.</description>
       <tasks>
-        <task id="T7.1" name="Implement func subroutine invocation" priority="high" status="TODO">
+        <task id="T7.1" name="Implement func subroutine invocation" priority="high" status="DONE" commit="7f3d29e75">
           Implement SPL subroutine semantics:
           - A "func" command cell is a subroutine master cell; its body is the indented block.
           - The subroutine body does not execute during normal top-level flow execution.
@@ -192,26 +192,26 @@
           - On invocation, assign x1..xn into cells starting at A1 and moving right (A1,B1,C1,...), then execute the block until return or block end.
           - If no return executes, return the last expression-cell value inside the subroutine block.
           <subtasks>
-            <subtask id="T7.1.1" name="Write failing tests for func + return" status="TODO" />
-            <subtask id="T7.1.2" name="Implement func/return" status="TODO" />
-            <subtask id="T7.1.3" name="Run tests and fix" status="TODO" />
+            <subtask id="T7.1.1" name="Write failing tests for func + return" status="DONE" />
+            <subtask id="T7.1.2" name="Implement func/return" status="DONE" />
+            <subtask id="T7.1.3" name="Run tests and fix" status="DONE" />
           </subtasks>
         </task>
-        <task id="T7.2" name="Implement result/end flow termination" priority="high" status="TODO">
+        <task id="T7.2" name="Implement result/end flow termination" priority="high" status="DONE" commit="7e58e04c7">
           Implement result to terminate flow with a value; implement end to terminate with optional error message.
         </task>
       </tasks>
     </phase>
 
-    <phase id="P8" name="Try" status="TODO">
+    <phase id="P8" name="Try" status="DONE">
       <description>Implement SPL-style try blocks with error capture semantics.</description>
       <tasks>
-        <task id="T8.1" name="Implement try block + error capture" priority="high" status="TODO">
+        <task id="T8.1" name="Implement try block + error capture" priority="high" status="DONE" commit="7f3d29e75">
           Capture errors thrown within try block execution, store message into the try cell, and continue after the block.
           <subtasks>
-            <subtask id="T8.1.1" name="Write failing tests for try" status="TODO" />
-            <subtask id="T8.1.2" name="Implement try handling" status="TODO" />
-            <subtask id="T8.1.3" name="Run tests and fix" status="TODO" />
+            <subtask id="T8.1.1" name="Write failing tests for try" status="DONE" />
+            <subtask id="T8.1.2" name="Implement try handling" status="DONE" />
+            <subtask id="T8.1.3" name="Run tests and fix" status="DONE" />
           </subtasks>
         </task>
       </tasks>
