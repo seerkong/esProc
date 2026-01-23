@@ -81,6 +81,7 @@ export interface FlowCellEvaluation {
 export interface FlowEvaluationResult {
   cells: FlowCellEvaluation[];
   lastQuery?: unknown;
+  result?: unknown;
   scope: Record<string, unknown>;
 }
 
@@ -605,11 +606,13 @@ export async function evaluateFlow(
   type ControlSignal =
     | { type: "break"; from: string; target?: string }
     | { type: "continue"; from: string; target?: string }
+    | { type: "goto"; from: string; target: FlowLocation }
     | { type: "result"; from: string; value: unknown }
     | { type: "end"; from: string; message?: string };
 
   type StepOutcome =
     | { kind: "next"; next: FlowLocation | null }
+    | { kind: "jump"; from: string; target: FlowLocation }
     | { kind: "signal"; signal: ControlSignal };
 
   const loopSeq = new Map<string, number>();
@@ -878,6 +881,14 @@ export async function evaluateFlow(
       if (outcome.kind === "signal") {
         return outcome.signal;
       }
+      if (outcome.kind === "jump") {
+        // If the jump escapes the current block boundary, bubble it up as a goto signal.
+        if (outcome.target.row > endRow || outcome.target.colIndex <= indentColIndex) {
+          return { type: "goto", from: outcome.from, target: outcome.target };
+        }
+        cur = outcome.target;
+        continue;
+      }
       cur = outcome.next;
     }
     return null;
@@ -1083,6 +1094,52 @@ export async function evaluateFlow(
     return { kind: "next", next: nextFrom({ row: blockEndRow + 1, colIndex: 1 }) };
   };
 
+  const executeGotoCommand = async (gotoCell: ReturnType<typeof grid.getCell>, loc: FlowLocation): Promise<StepOutcome> => {
+    const rawExpr = gotoCell.raw ?? "";
+    const args = (gotoCell.command?.rawArgs ?? "").trim();
+    if (args.length === 0) {
+      recordError(gotoCell.cellRef, gotoCell.row, gotoCell.col, rawExpr, "goto requires a target cellRef");
+      return { kind: "next", next: nextAfter(loc) };
+    }
+
+    let parsed: ReturnType<typeof parseCellRef>;
+    try {
+      parsed = parseCellRef(args);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      recordError(gotoCell.cellRef, gotoCell.row, gotoCell.col, rawExpr, `Invalid goto target '${args}': ${message}`);
+      return { kind: "next", next: nextAfter(loc) };
+    }
+
+    // Safety: never allow jumping into a deeper indentation scope.
+    if (parsed.colIndex > gotoCell.colIndex) {
+      recordError(
+        gotoCell.cellRef,
+        gotoCell.row,
+        gotoCell.col,
+        rawExpr,
+        `Illegal goto into deeper indentation: ${gotoCell.cellRef} -> ${parsed.cellRef}`,
+      );
+      return { kind: "next", next: nextAfter(loc) };
+    }
+
+    const targetCell = grid.getCell(parsed.row, parsed.colIndex);
+    if (targetCell.kind === "blank" || targetCell.kind === "comment") {
+      recordError(
+        gotoCell.cellRef,
+        gotoCell.row,
+        gotoCell.col,
+        rawExpr,
+        `Invalid goto target '${parsed.cellRef}': target cell is ${targetCell.kind}`,
+      );
+      return { kind: "next", next: nextAfter(loc) };
+    }
+
+    scope[gotoCell.cellRef] = null;
+    recordOk(gotoCell.cellRef, gotoCell.row, gotoCell.col, rawExpr, null);
+    return { kind: "jump", from: gotoCell.cellRef, target: { row: parsed.row, colIndex: parsed.colIndex } };
+  };
+
   const executeAt = async (loc: FlowLocation, cell: ReturnType<typeof grid.getCell>): Promise<StepOutcome> => {
     if (cell.kind === "expression") {
       await executeExpressionCell(cell.cellRef);
@@ -1098,6 +1155,46 @@ export async function evaluateFlow(
       }
       if (kind === "for") {
         return executeForCommand(cell);
+      }
+      if (kind === "goto") {
+        return executeGotoCommand(cell, loc);
+      }
+      if (kind === "result") {
+        const expr = (cell.command?.rawArgs ?? "").trim();
+        if (expr.length === 0) {
+          recordError(cell.cellRef, cell.row, cell.col, rawExpr, "result requires an expression");
+          return { kind: "next", next: nextAfter(loc) };
+        }
+        try {
+          const value = await evalExpression(expr);
+          scope[cell.cellRef] = value;
+          recordOk(cell.cellRef, cell.row, cell.col, rawExpr, value);
+          return { kind: "signal", signal: { type: "result", from: cell.cellRef, value } };
+        } catch (e) {
+          const message = e instanceof Error ? e.message : String(e);
+          recordError(cell.cellRef, cell.row, cell.col, rawExpr, message);
+          return { kind: "next", next: nextAfter(loc) };
+        }
+      }
+      if (kind === "end") {
+        const args = (cell.command?.rawArgs ?? "").trim();
+        if (args.length === 0) {
+          scope[cell.cellRef] = null;
+          recordOk(cell.cellRef, cell.row, cell.col, rawExpr, null);
+          return { kind: "signal", signal: { type: "end", from: cell.cellRef } };
+        }
+
+        try {
+          const value = await evalExpression(args);
+          const message = value === null || value === undefined ? "" : String(value);
+          scope[cell.cellRef] = message;
+          recordOk(cell.cellRef, cell.row, cell.col, rawExpr, message);
+          return { kind: "signal", signal: { type: "end", from: cell.cellRef, message } };
+        } catch (e) {
+          const message = e instanceof Error ? e.message : String(e);
+          recordError(cell.cellRef, cell.row, cell.col, rawExpr, message);
+          return { kind: "next", next: nextAfter(loc) };
+        }
       }
       if (kind === "break" || kind === "continue") {
         const parsed = parseBreakContinueTarget(cell.cellRef, cell.command?.rawArgs ?? "");
@@ -1125,10 +1222,33 @@ export async function evaluateFlow(
     return { kind: "next", next: nextAfter(loc) };
   };
 
-  const topSignal = await runBlock({ row: 1, colIndex: 1 }, grid.maxRow, 0);
-  if (topSignal && (topSignal.type === "break" || topSignal.type === "continue")) {
-    const origin = grid.getCellByRef(topSignal.from);
-    recordError(origin.cellRef, origin.row, origin.col, origin.raw ?? "", `${topSignal.type} used outside loop`);
+  let start = { row: 1, colIndex: 1 };
+  let terminalSignal: ControlSignal | null = null;
+  while (true) {
+    const signal = await runBlock(start, grid.maxRow, 0);
+    if (!signal) break;
+
+    if (signal.type === "goto") {
+      start = signal.target;
+      continue;
+    }
+
+    terminalSignal = signal;
+    break;
+  }
+
+  if (terminalSignal && (terminalSignal.type === "break" || terminalSignal.type === "continue")) {
+    const origin = grid.getCellByRef(terminalSignal.from);
+    recordError(origin.cellRef, origin.row, origin.col, origin.raw ?? "", `${terminalSignal.type} used outside loop`);
+  }
+
+  let result: unknown;
+  if (terminalSignal?.type === "result") {
+    result = terminalSignal.value;
+  }
+
+  if (terminalSignal?.type === "end" && terminalSignal.message !== undefined) {
+    throw new Error(terminalSignal.message);
   }
 
   const evaluations: FlowCellEvaluation[] = grid.cells.map((cell) => {
@@ -1142,7 +1262,7 @@ export async function evaluateFlow(
     return { row: cell.row, col: cell.col, expr: cell.raw ?? "", status: "ok" };
   });
 
-  return { cells: evaluations, lastQuery, scope };
+  return { cells: evaluations, lastQuery, result, scope };
 }
 
 function isQueryResult(value: unknown): value is QueryResultData {
