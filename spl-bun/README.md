@@ -8,6 +8,7 @@ This workspace hosts a TypeScript reimplementation of the esProc core engine wit
 
 ## Scripts
 - `bun test` — run all workspace tests (core + sqlite adapter + fixtures)
+- `bun run test:e2e` — run Playwright E2E tests
 - `bun run build` — build all packages
 
 Notes: TypeScript only; linting is deferred for v1. Naming and directory structure aim to stay close to the original esProc sources where practical.

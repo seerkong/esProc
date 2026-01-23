@@ -2,6 +2,8 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "packages/web-ide/__tests__/e2e",
+  // Keep Playwright e2e tests out of Bun's default `*.spec.ts` discovery.
+  testMatch: "**/*.e2e.ts",
   timeout: 30_000,
   use: {
     baseURL: "http://localhost:4174",

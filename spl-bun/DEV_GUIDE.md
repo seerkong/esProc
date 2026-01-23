@@ -68,7 +68,9 @@ bun run test:e2e
 ```
 
 **说明：**
+- 单元测试：`bun test`
 - 用例目录：`packages/web-ide/__tests__/e2e/`
+- E2E 用例文件命名为 `*.e2e.ts`，避免被 `bun test` 误当作单元测试执行
 - 测试会按 `playwright.config.ts` 自动启动两进程：
   - 后端：`bun run dev:backend`（`http://localhost:4176/api/health`）
   - 前端：`bun run dev:frontend`（`http://localhost:4174`）
