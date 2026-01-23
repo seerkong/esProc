@@ -5,8 +5,8 @@
     <track_name>Add Web-IDE flow-control demos</track_name>
     <goal>Add runnable Web-IDE demos for the flow-control statements implemented in spl-flow, including multi-column (indented block) execution and E2E smoke coverage.</goal>
     <created_at>2026-01-23T19:29:52Z</created_at>
-    <updated_at>2026-01-23T19:41:10Z</updated_at>
-    <status>new</status>
+    <updated_at>2026-01-23T19:52:53Z</updated_at>
+    <status>in_progress</status>
     <commit_mode>auto</commit_mode>
   </metadata>
 
@@ -14,7 +14,7 @@
     <phase id="P1" name="Spec & Design Lock" status="DONE">
       <description>Lock the demo scope, multi-column execution approach, and test strategy.</description>
       <tasks>
-        <task id="T1.1" name="Draft spec/proposal/design" priority="high" status="DONE">
+        <task id="T1.1" name="Draft spec/proposal/design" priority="high" status="DONE" commit="7eeda8505">
           Draft and confirm the track docs.
           <changed-key-files>
             <file>codument/tracks/add-web-ide-flow-control-demos/spec.md</file>
