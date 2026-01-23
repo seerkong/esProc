@@ -6,19 +6,27 @@
     <goal>Add grid-based flow execution and SPL control-flow statements (if/for/break/next/goto/func/return/try) to packages/spl-flow, aligning behavior with Java SPL while keeping Web-IDE's no-leading-'=' input style.</goal>
     <created_at>2026-01-23T10:07:24Z</created_at>
     <updated_at>2026-01-23T10:07:24Z</updated_at>
-    <status>new</status>
+    <status>in_progress</status>
     <commit_mode>auto</commit_mode>
   </metadata>
 
   <phases>
-    <phase id="P1" name="Spec & Design Lock" status="TODO">
+    <phase id="P1" name="Spec & Design Lock" status="IN_PROGRESS">
       <description>Lock the exact SPL subset and the TypeScript compatibility rules.</description>
       <tasks>
-        <task id="T1.1" name="Confirm supported statements + exclusions" priority="high" status="TODO">
+        <task id="T1.1" name="Confirm supported statements + exclusions" priority="high" status="DONE" commit="b2b694e97">
           Confirm the exact statement set in-scope: if/elseif/else, for (n/range/sequence/while), break/next, goto, func/return/result/end, try. Explicitly exclude fork/reduce/channel.
+          <changed-key-files>
+            <file>codument/tracks/impl-flow-control/spec.md</file>
+            <file>codument/tracks/impl-flow-control/design.md</file>
+          </changed-key-files>
+          <acceptance_criteria>
+            <criterion id="T1.1-AC1" checked="true">Spec explicitly lists in-scope statements and excludes fork/reduce/channel.</criterion>
+            <criterion id="T1.1-AC2" checked="true">Spec includes scenarios for each in-scope statement, including a decision to support #&lt;cellRef&gt; loop sequence syntax.</criterion>
+          </acceptance_criteria>
           <subtasks>
-            <subtask id="T1.1.1" name="Write spec scenarios for each statement" status="TODO" />
-            <subtask id="T1.1.2" name="Decide if '#A1' loop-seq syntax is in scope" status="TODO" />
+            <subtask id="T1.1.1" name="Write spec scenarios for each statement" status="DONE" />
+            <subtask id="T1.1.2" name="Decide if '#A1' loop-seq syntax is in scope" status="DONE" />
           </subtasks>
         </task>
         <task id="T1.2" name="Confirm grid + no-leading-'=' compatibility rules" priority="high" status="TODO">
