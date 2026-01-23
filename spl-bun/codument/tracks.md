@@ -10,5 +10,5 @@
 
 | Track ID | 名称 | 状态 | 创建时间 |
 |----------|------|------|----------|
-| impl-flow-control | Implement SPL(Java) flow control in TypeScript (spl-flow) | in_progress | 2026-01-23T10:07:24Z |
+| add-web-ide-flow-control-demos | Add Web-IDE flow-control demos | new | 2026-01-23T19:29:52Z |
 
