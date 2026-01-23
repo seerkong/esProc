@@ -279,7 +279,15 @@ export function evaluateAst(
       if (!fn) {
         throw new Error(`Unknown function '${node.callee}'`);
       }
-      const args = node.args.map((a) => evaluateAst(a, scope, registry, memberRegistry));
+      const callee = node.callee.toLowerCase();
+      const args = node.args.map((a, idx) => {
+        // SPL flow control: func(A1, ...) treats the first argument as a cellRef literal.
+        // We preserve identifier-as-scope lookup for all other contexts.
+        if (callee === "func" && idx === 0 && a.type === "identifier") {
+          return a.name;
+        }
+        return evaluateAst(a, scope, registry, memberRegistry);
+      });
       if (node.argGroups) {
         const groups = node.argGroups.map((group) => group.map((a) => evaluateAst(a, scope, registry, memberRegistry)));
         args.push(groups);

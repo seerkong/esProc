@@ -15,7 +15,7 @@ import { ConnectionRegistry } from "./connection/registry";
 import { createDataSourceHandle } from "./connection/handle";
 import { DataSourceFactory } from "./datasource/factory";
 import type { DataSourceConfig } from "./datasource/types";
-import { buildFlowGrid, parseCellRef } from "./flow/grid";
+import { buildFlowGrid, indexToCol, parseCellRef } from "./flow/grid";
 import { getCodeBlockEndRow, setNext, type FlowLocation, type FlowStackFrame } from "./flow/navigation";
 
 export type FlowStepKind = "expr" | "query";
@@ -607,6 +607,7 @@ export async function evaluateFlow(
     | { type: "break"; from: string; target?: string }
     | { type: "continue"; from: string; target?: string }
     | { type: "goto"; from: string; target: FlowLocation }
+    | { type: "return"; from: string; value: unknown }
     | { type: "result"; from: string; value: unknown }
     | { type: "end"; from: string; message?: string };
 
@@ -614,6 +615,68 @@ export async function evaluateFlow(
     | { kind: "next"; next: FlowLocation | null }
     | { kind: "jump"; from: string; target: FlowLocation }
     | { kind: "signal"; signal: ControlSignal };
+
+  class FlowControlError extends Error {
+    readonly signal: ControlSignal;
+
+    constructor(signal: ControlSignal) {
+      super(signal.type);
+      this.name = "FlowControlError";
+      this.signal = signal;
+    }
+  }
+
+  const funcFrames: Array<{ lastValue: unknown }> = [];
+
+  const funcFn = async (masterCell?: unknown, ...args: unknown[]): Promise<unknown> => {
+    if (typeof masterCell !== "string" || masterCell.trim().length === 0) {
+      throw new Error("func() expects a master cellRef as the first argument");
+    }
+
+    const parsed = parseCellRef(masterCell);
+    const master = grid.getCellByRef(parsed.cellRef);
+    if (master.kind !== "command" || master.command?.kind !== "func") {
+      throw new Error(`func() master cell must be a func command cell: ${parsed.cellRef}`);
+    }
+
+    // Assign args into cells starting at the master cell and moving right (A1,B1,C1,...).
+    for (let i = 0; i < args.length; i++) {
+      const ref = `${indexToCol(master.colIndex + i)}${master.row}`;
+      scope[ref] = args[i];
+    }
+
+    const frame = { lastValue: null as unknown };
+    funcFrames.push(frame);
+    try {
+      const blockEndRow = getCodeBlockEndRow(grid, master.row, master.colIndex);
+      const signal = await runBlock({ row: master.row, colIndex: master.colIndex + 1 }, blockEndRow, master.colIndex);
+      if (!signal) {
+        return frame.lastValue ?? null;
+      }
+
+      if (signal.type === "return") {
+        return signal.value;
+      }
+
+      if (signal.type === "goto") {
+        const targetRef = `${indexToCol(signal.target.colIndex)}${signal.target.row}`;
+        throw new Error(`Illegal goto out of func body: ${signal.from} -> ${targetRef}`);
+      }
+
+      if (signal.type === "break" || signal.type === "continue") {
+        const origin = grid.getCellByRef(signal.from);
+        recordError(origin.cellRef, origin.row, origin.col, origin.raw ?? "", `${signal.type} used outside loop`);
+        throw new Error(`${signal.type} used outside loop`);
+      }
+
+      // result/end terminate the overall flow even when triggered inside func().
+      throw new FlowControlError(signal);
+    } finally {
+      funcFrames.pop();
+    }
+  };
+
+  const expressionRegistry = new FunctionRegistryBuilder(resolveExpressionFunctions(ctx)).add("func", funcFn).build();
 
   const loopSeq = new Map<string, number>();
   const loopSeqVarName = (cellRef: string) => `__loopSeq_${cellRef}`;
@@ -745,7 +808,7 @@ export async function evaluateFlow(
     }
 
     const qValue = resolveQQuery(rewritten, ctx, scope);
-    const registry = resolveExpressionFunctions(ctx);
+    const registry = expressionRegistry;
     const compiled = qValue === null ? compileExpression(rewritten, registry, defaultMemberRegistry) : null;
     let value = qValue === null ? compiled!.evaluate(scope) : qValue;
     if (value instanceof Promise) {
@@ -772,7 +835,14 @@ export async function evaluateFlow(
       }
 
       recordOk(cell.cellRef, cell.row, cell.col, rawExpr, value);
+
+      if (funcFrames.length > 0) {
+        funcFrames[funcFrames.length - 1].lastValue = value;
+      }
     } catch (error) {
+      if (error instanceof FlowControlError) {
+        throw error;
+      }
       const message = error instanceof Error ? error.message : String(error);
       recordError(cell.cellRef, cell.row, cell.col, rawExpr, message);
     }
@@ -877,7 +947,15 @@ export async function evaluateFlow(
       if (cur.colIndex <= indentColIndex) return null;
 
       const cell = grid.getCell(cur.row, cur.colIndex);
-      const outcome = await executeAt(cur, cell);
+      let outcome: StepOutcome;
+      try {
+        outcome = await executeAt(cur, cell);
+      } catch (error) {
+        if (error instanceof FlowControlError) {
+          return error.signal;
+        }
+        throw error;
+      }
       if (outcome.kind === "signal") {
         return outcome.signal;
       }
@@ -1140,6 +1218,60 @@ export async function evaluateFlow(
     return { kind: "jump", from: gotoCell.cellRef, target: { row: parsed.row, colIndex: parsed.colIndex } };
   };
 
+  const executeTryCommand = async (tryCell: ReturnType<typeof grid.getCell>): Promise<StepOutcome> => {
+    const rawExpr = tryCell.raw ?? "";
+    const indentColIndex = tryCell.colIndex;
+    const blockEndRow = getCodeBlockEndRow(grid, tryCell.row, indentColIndex);
+    const nextAfterBlock = nextFrom({ row: blockEndRow + 1, colIndex: 1 });
+
+    // Walk the try block and stop on the first recorded error.
+    let cur = nextFrom({ row: tryCell.row, colIndex: indentColIndex + 1 });
+    while (cur) {
+      if (cur.row > blockEndRow) break;
+      if (cur.colIndex <= indentColIndex) break;
+
+      const cell = grid.getCell(cur.row, cur.colIndex);
+      let outcome: StepOutcome;
+      try {
+        outcome = await executeAt(cur, cell);
+      } catch (error) {
+        if (error instanceof FlowControlError) {
+          return { kind: "signal", signal: error.signal };
+        }
+        // Treat unexpected runtime errors as caught by try.
+        const message = error instanceof Error ? error.message : String(error);
+        scope[tryCell.cellRef] = message;
+        recordOk(tryCell.cellRef, tryCell.row, tryCell.col, rawExpr, message);
+        return { kind: "next", next: nextAfterBlock };
+      }
+
+      if (outcome.kind === "signal") {
+        return outcome;
+      }
+
+      if (outcome.kind === "jump") {
+        if (outcome.target.row > blockEndRow || outcome.target.colIndex <= indentColIndex) {
+          return { kind: "signal", signal: { type: "goto", from: outcome.from, target: outcome.target } };
+        }
+        cur = outcome.target;
+      } else {
+        cur = outcome.next;
+      }
+
+      const evaluation = evalByRef.get(cell.cellRef);
+      if (evaluation?.status === "error") {
+        const message = evaluation.error ?? "";
+        scope[tryCell.cellRef] = message;
+        recordOk(tryCell.cellRef, tryCell.row, tryCell.col, rawExpr, message);
+        return { kind: "next", next: nextAfterBlock };
+      }
+    }
+
+    scope[tryCell.cellRef] = null;
+    recordOk(tryCell.cellRef, tryCell.row, tryCell.col, rawExpr, null);
+    return { kind: "next", next: nextAfterBlock };
+  };
+
   const executeAt = async (loc: FlowLocation, cell: ReturnType<typeof grid.getCell>): Promise<StepOutcome> => {
     if (cell.kind === "expression") {
       await executeExpressionCell(cell.cellRef);
@@ -1158,6 +1290,29 @@ export async function evaluateFlow(
       }
       if (kind === "goto") {
         return executeGotoCommand(cell, loc);
+      }
+      if (kind === "try") {
+        return executeTryCommand(cell);
+      }
+      if (kind === "func") {
+        // Subroutine definition: skip its body during normal flow execution.
+        scope[cell.cellRef] = null;
+        recordOk(cell.cellRef, cell.row, cell.col, rawExpr, null);
+        const blockEndRow = getCodeBlockEndRow(grid, cell.row, cell.colIndex);
+        return { kind: "next", next: nextFrom({ row: blockEndRow + 1, colIndex: 1 }) };
+      }
+      if (kind === "return") {
+        const expr = (cell.command?.rawArgs ?? "").trim();
+        try {
+          const value = expr.length === 0 ? null : await evalExpression(expr);
+          scope[cell.cellRef] = value;
+          recordOk(cell.cellRef, cell.row, cell.col, rawExpr, value);
+          return { kind: "signal", signal: { type: "return", from: cell.cellRef, value } };
+        } catch (e) {
+          const message = e instanceof Error ? e.message : String(e);
+          recordError(cell.cellRef, cell.row, cell.col, rawExpr, message);
+          return { kind: "next", next: nextAfter(loc) };
+        }
       }
       if (kind === "result") {
         const expr = (cell.command?.rawArgs ?? "").trim();
@@ -1240,6 +1395,11 @@ export async function evaluateFlow(
   if (terminalSignal && (terminalSignal.type === "break" || terminalSignal.type === "continue")) {
     const origin = grid.getCellByRef(terminalSignal.from);
     recordError(origin.cellRef, origin.row, origin.col, origin.raw ?? "", `${terminalSignal.type} used outside loop`);
+  }
+
+  if (terminalSignal && terminalSignal.type === "return") {
+    const origin = grid.getCellByRef(terminalSignal.from);
+    recordError(origin.cellRef, origin.row, origin.col, origin.raw ?? "", "return used outside func");
   }
 
   let result: unknown;
