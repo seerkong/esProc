@@ -416,8 +416,8 @@ const demos: Demo[] = [
     cells: [
       { row: 1, col: "A", expr: "func" },
       { row: 2, col: "B", expr: "return A1 + B1" },
-      { row: 3, col: "A", expr: "v = func(A1, 1, 2)" },
-      { row: 4, col: "A", expr: 'rows = [ { name: "v", value: v } ]' },
+      { row: 3, col: "A", expr: "func(A1, 1, 2)" },
+      { row: 4, col: "A", expr: 'rows = [ { name: "v", value: A3 } ]' },
       { row: 5, col: "A", expr: 'out = { columns: ["name", "value"], rows: rows }' },
       { row: 6, col: "A", expr: "out" },
     ],
