@@ -12,6 +12,10 @@ Explicit exclusions (out of scope for this track):
 Key difference vs Java SPL examples:
 - Java SPL often shows calculable cells with a leading `=`. In this project (Web-IDE), expressions are entered without a leading `=`. The runtime SHALL accept both forms, but MUST NOT require `=`.
 
+Compatibility notes:
+- Java SPL examples often use an executable-cell leading `>` (e.g. `>x=x+1`). The runtime SHALL accept a leading `>` on expression cells, but MUST NOT require it.
+- Cells whose trimmed content begins with `/` or `//` are treated as comments and skipped during evaluation.
+
 ---
 
 ## ADDED Requirements
@@ -23,6 +27,9 @@ The `spl-flow` runtime SHALL evaluate a 2D grid of cells addressed by (row, col)
 - Evaluation order SHALL follow SPL grid navigation rules (row/col positioning + `setNext`-style navigation), skipping blank/comment cells.
 - The runtime SHALL support nested code blocks using indentation (cells to the right of a command cell).
 
+- Expression cells MAY optionally start with a leading `=` or `>` prefix (Java SPL style); the runtime SHALL strip this prefix before evaluating the expression.
+- A blank cell is a cell whose content is empty/whitespace. A comment cell is a cell whose trimmed content begins with `/`.
+
 #### Scenario: Basic sequential evaluation remains supported
 - **GIVEN** cells:
   - `A1: a = 2`
@@ -30,6 +37,24 @@ The `spl-flow` runtime SHALL evaluate a 2D grid of cells addressed by (row, col)
   - `A3: a + b`
 - **WHEN** evaluating the flow
 - **THEN** `scope.A3` is `5`
+
+#### Scenario: Optional leading '=' and '>' prefixes are accepted
+- **GIVEN** cells:
+  - `A1: =1 + 2`
+  - `A2: 1 + 2`
+  - `A3: >1 + 2`
+- **WHEN** evaluating the flow
+- **THEN** `scope.A1` is `3`
+- **AND** `scope.A2` is `3`
+- **AND** `scope.A3` is `3`
+
+#### Scenario: Comment cells are skipped
+- **GIVEN** cells:
+  - `A1: // comment`
+  - `A2: 1 + 1`
+- **WHEN** evaluating the flow
+- **THEN** `scope.A1` remains unset
+- **AND** `scope.A2` is `2`
 
 
 ### Requirement: Recognize flow-control command cells
