@@ -8,7 +8,7 @@ export type FlowCommandKind =
   | "elseif"
   | "for"
   | "break"
-  | "next"
+  | "continue"
   | "goto"
   | "func"
   | "return"
@@ -135,10 +135,8 @@ export function parseCommandCell(textInput: string): FlowCommand | null {
       return { kind: "for", rawArgs };
     case "break":
       return { kind: "break", rawArgs };
-    case "next":
-      return { kind: "next", rawArgs };
     case "continue":
-      return { kind: "next", rawArgs };
+      return { kind: "continue", rawArgs };
     case "goto":
       return { kind: "goto", rawArgs };
     case "func":
@@ -164,7 +162,8 @@ export function classifyCellText(rawInput: string): Pick<FlowGridCell, "kind" | 
     return { kind: "blank" };
   }
 
-  if (trimmed.startsWith("/")) {
+  // TS dialect: only '//' starts a comment cell. Single '/' is NOT a comment.
+  if (trimmed.startsWith("//")) {
     return { kind: "comment" };
   }
 
@@ -195,35 +194,99 @@ function makeBlankCell(row: number, col: string): FlowGridCell {
 }
 
 export function buildFlowGrid(flowCells: FlowCell[]): FlowGrid {
-  const byRef = new Map<string, FlowGridCell>();
-  let maxRow = 0;
-  let maxColIndex = 0;
+  type Normalized = {
+    row: number;
+    col: string;
+    colIndex: number;
+    cellRef: string;
+    raw: string;
+    trimmed: string;
+  };
 
+  // First normalize inputs and reject duplicates early.
+  const normalizedCells: Normalized[] = [];
+  const seenRefs = new Set<string>();
   for (const cell of flowCells) {
     const row = normalizeRow(cell.row);
     const { col, colIndex } = normalizeCol(cell.col);
     const cellRef = `${col}${row}`;
     const raw = cell.expr ?? "";
+    const trimmed = String(raw).trim();
 
-    if (byRef.has(cellRef)) {
+    if (seenRefs.has(cellRef)) {
       throw new Error(`Duplicate cell definition: ${cellRef}`);
     }
+    // TS dialect: `next` is not supported; reject with a clear hint.
+    if (/^next(?:\s|$)/i.test(trimmed)) {
+      throw new Error("next is not supported; use continue");
+    }
 
-    const classified = classifyCellText(raw);
-    const gridCell: FlowGridCell = {
-      row,
-      col,
-      colIndex,
-      cellRef,
-      raw,
-      kind: classified.kind,
-      normalizedExpr: classified.normalizedExpr,
-      command: classified.command,
-    };
+    seenRefs.add(cellRef);
+    normalizedCells.push({ row, col, colIndex, cellRef, raw, trimmed });
+  }
 
-    byRef.set(cellRef, gridCell);
-    maxRow = Math.max(maxRow, row);
-    maxColIndex = Math.max(maxColIndex, colIndex);
+  // Group by row so we can apply the TS dialect rules:
+  // 1) comment rows truncate the remainder of the row
+  // 2) after truncation, each row can have at most one executable cell (command/expression)
+  const cellsByRow = new Map<number, Normalized[]>();
+  for (const cell of normalizedCells) {
+    const list = cellsByRow.get(cell.row);
+    if (list) list.push(cell);
+    else cellsByRow.set(cell.row, [cell]);
+  }
+
+  const byRef = new Map<string, FlowGridCell>();
+  let maxRow = 0;
+  let maxColIndex = 0;
+
+  const rows = [...cellsByRow.keys()].sort((a, b) => a - b);
+  for (const row of rows) {
+    const rowCells = [...(cellsByRow.get(row) ?? [])].sort((a, b) => a.colIndex - b.colIndex);
+
+    // Find leftmost comment cell (if any). Only '//' starts a comment cell.
+    let commentCutoff: number | null = null;
+    for (const cell of rowCells) {
+      if (cell.trimmed.startsWith("//")) {
+        commentCutoff = commentCutoff === null ? cell.colIndex : Math.min(commentCutoff, cell.colIndex);
+      }
+    }
+
+    const kept = commentCutoff === null ? rowCells : rowCells.filter((cell) => cell.colIndex <= commentCutoff);
+
+    let executableCount = 0;
+    for (const cell of kept) {
+      const classified = classifyCellText(cell.raw);
+      if (classified.kind === "command" || classified.kind === "expression") {
+        executableCount += 1;
+      }
+    }
+    if (executableCount > 1) {
+      const executableRefs = kept
+        .map((cell) => {
+          const kind = classifyCellText(cell.raw).kind;
+          return kind === "command" || kind === "expression" ? cell.cellRef : null;
+        })
+        .filter((v): v is string => Boolean(v));
+      const details = executableRefs.length ? ` (${executableRefs.join(", ")})` : "";
+      throw new Error(`Multiple executable cells in row ${row} are not allowed${details}`);
+    }
+
+    for (const cell of kept) {
+      const classified = classifyCellText(cell.raw);
+      const gridCell: FlowGridCell = {
+        row: cell.row,
+        col: cell.col,
+        colIndex: cell.colIndex,
+        cellRef: cell.cellRef,
+        raw: cell.raw,
+        kind: classified.kind,
+        normalizedExpr: classified.normalizedExpr,
+        command: classified.command,
+      };
+      byRef.set(cell.cellRef, gridCell);
+      maxRow = Math.max(maxRow, cell.row);
+      maxColIndex = Math.max(maxColIndex, cell.colIndex);
+    }
   }
 
   const cells = [...byRef.values()].sort((a, b) => {

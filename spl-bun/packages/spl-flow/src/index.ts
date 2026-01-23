@@ -15,7 +15,7 @@ import { ConnectionRegistry } from "./connection/registry";
 import { createDataSourceHandle } from "./connection/handle";
 import { DataSourceFactory } from "./datasource/factory";
 import type { DataSourceConfig } from "./datasource/types";
-import { buildFlowGrid } from "./flow/grid";
+import { buildFlowGrid, parseCellRef } from "./flow/grid";
 import { getCodeBlockEndRow, setNext, type FlowLocation, type FlowStackFrame } from "./flow/navigation";
 
 export type FlowStepKind = "expr" | "query";
@@ -598,7 +598,22 @@ export async function evaluateFlow(
   const grid = buildFlowGrid(cells);
   ensureDbHandles(scope, ctx);
 
-  const stack: FlowStackFrame[] = [];
+  // We use setNext() for deterministic row/col navigation. Stack logic is unused in
+  // the executor (loops are handled explicitly), so pass an empty stack.
+  const navStack: FlowStackFrame[] = [];
+
+  type ControlSignal =
+    | { type: "break"; from: string; target?: string }
+    | { type: "continue"; from: string; target?: string }
+    | { type: "result"; from: string; value: unknown }
+    | { type: "end"; from: string; message?: string };
+
+  type StepOutcome =
+    | { kind: "next"; next: FlowLocation | null }
+    | { kind: "signal"; signal: ControlSignal };
+
+  const loopSeq = new Map<string, number>();
+  const loopSeqVarName = (cellRef: string) => `__loopSeq_${cellRef}`;
 
   const recordOk = (cellRef: string, row: number, col: string, rawExpr: string, result?: unknown) => {
     const evaluation: FlowCellEvaluation = {
@@ -623,16 +638,86 @@ export async function evaluateFlow(
     });
   };
 
-  const getCell = (loc: FlowLocation) => grid.getCell(loc.row, loc.colIndex);
+  const nextFrom = (loc: FlowLocation): FlowLocation | null => setNext(grid, loc, false, navStack);
+  const nextAfter = (loc: FlowLocation): FlowLocation | null => nextFrom({ row: loc.row, colIndex: loc.colIndex + 1 });
 
-  const nextAfter = (loc: FlowLocation, checkStack: boolean): FlowLocation | null =>
-    setNext(grid, { row: loc.row, colIndex: loc.colIndex + 1 }, checkStack, stack);
+  const rewriteLoopSeqRefs = (input: string): { rewritten: string; refs: string[] } => {
+    let out = "";
+    const refs: string[] = [];
+    let i = 0;
+    let inSingle = false;
+    let inDouble = false;
 
-  const nextFrom = (loc: FlowLocation, checkStack: boolean): FlowLocation | null =>
-    setNext(grid, loc, checkStack, stack);
+    while (i < input.length) {
+      const ch = input[i];
+
+      if (inSingle) {
+        out += ch;
+        if (ch === "\\" && i + 1 < input.length) {
+          out += input[i + 1];
+          i += 2;
+          continue;
+        }
+        if (ch === "'") inSingle = false;
+        i += 1;
+        continue;
+      }
+
+      if (inDouble) {
+        out += ch;
+        if (ch === "\\" && i + 1 < input.length) {
+          out += input[i + 1];
+          i += 2;
+          continue;
+        }
+        if (ch === '"') inDouble = false;
+        i += 1;
+        continue;
+      }
+
+      if (ch === "'") {
+        inSingle = true;
+        out += ch;
+        i += 1;
+        continue;
+      }
+      if (ch === '"') {
+        inDouble = true;
+        out += ch;
+        i += 1;
+        continue;
+      }
+
+      if (ch === "#") {
+        const tail = input.slice(i + 1);
+        const match = tail.match(/^([A-Za-z]+\d+)/);
+        if (match) {
+          const cellRef = match[1].toUpperCase();
+          refs.push(cellRef);
+          out += loopSeqVarName(cellRef);
+          i += 1 + match[1].length;
+          continue;
+        }
+      }
+
+      out += ch;
+      i += 1;
+    }
+
+    return { rewritten: out, refs };
+  };
 
   const evalExpression = async (expression: string): Promise<unknown> => {
-    const connectionName = inferConnectionName(expression);
+    const { rewritten, refs } = rewriteLoopSeqRefs(expression);
+    for (const ref of refs) {
+      const seq = loopSeq.get(ref);
+      if (seq === undefined) {
+        throw new Error(`Unknown loop sequence reference: #${ref}`);
+      }
+      scope[loopSeqVarName(ref)] = seq;
+    }
+
+    const connectionName = inferConnectionName(rewritten);
     const hasConnection = Boolean(connectionName && ctx.connections?.has(connectionName));
     const hasDataSource = Boolean(connectionName && ctx.dataSourceConfigs?.some((config) => config.name === connectionName));
 
@@ -656,9 +741,9 @@ export async function evaluateFlow(
       throw new Error(`Connection '${connectionName}' not found`);
     }
 
-    const qValue = resolveQQuery(expression, ctx, scope);
+    const qValue = resolveQQuery(rewritten, ctx, scope);
     const registry = resolveExpressionFunctions(ctx);
-    const compiled = qValue === null ? compileExpression(expression, registry, defaultMemberRegistry) : null;
+    const compiled = qValue === null ? compileExpression(rewritten, registry, defaultMemberRegistry) : null;
     let value = qValue === null ? compiled!.evaluate(scope) : qValue;
     if (value instanceof Promise) {
       value = await value;
@@ -666,7 +751,8 @@ export async function evaluateFlow(
     return value;
   };
 
-  const executeExpressionCell = async (cell: ReturnType<typeof getCell>): Promise<void> => {
+  const executeExpressionCell = async (cellRef: string): Promise<void> => {
+    const cell = grid.getCellByRef(cellRef);
     const rawExpr = cell.raw ?? "";
     const expression = (cell.normalizedExpr ?? "").trim();
     if (expression.length === 0) {
@@ -689,25 +775,118 @@ export async function evaluateFlow(
     }
   };
 
-  const executeSameRowIfChain = async (ifCell: ReturnType<typeof getCell>): Promise<FlowLocation | null> => {
-    const row = ifCell.row;
-    const indentColIndex = ifCell.colIndex;
-    const rawIf = ifCell.raw ?? "";
+  const parseBreakContinueTarget = (cellRef: string, raw: string): { target?: string; error?: string } => {
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) return {};
+    try {
+      const parsed = parseCellRef(trimmed);
+      return { target: parsed.cellRef };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return { error: `Invalid target cellRef '${trimmed}' for ${cellRef}: ${message}` };
+    }
+  };
 
-    const branches: Array<ReturnType<typeof getCell>> = [ifCell];
-    let chainEndColIndex = indentColIndex + 1;
+  const splitTopLevelCommas = (input: string): string[] => {
+    const parts: string[] = [];
+    let buf = "";
+    let depthParen = 0;
+    let depthBracket = 0;
+    let depthBrace = 0;
+    let inSingle = false;
+    let inDouble = false;
 
-    // Find else/elseif branches on the same row to the right.
-    for (let colIndex = indentColIndex + 2; colIndex <= grid.maxColIndex; colIndex++) {
-      const cell = grid.getCell(row, colIndex);
-      if (cell.kind === "command" && (cell.command?.kind === "elseif" || cell.command?.kind === "else")) {
-        branches.push(cell);
-        chainEndColIndex = Math.max(chainEndColIndex, cell.colIndex + 1);
-        colIndex = cell.colIndex + 1;
+    const flush = () => {
+      const v = buf.trim();
+      parts.push(v);
+      buf = "";
+    };
+
+    for (let i = 0; i < input.length; i++) {
+      const ch = input[i];
+
+      if (inSingle) {
+        buf += ch;
+        if (ch === "\\" && i + 1 < input.length) {
+          buf += input[i + 1];
+          i += 1;
+          continue;
+        }
+        if (ch === "'") inSingle = false;
+        continue;
       }
+
+      if (inDouble) {
+        buf += ch;
+        if (ch === "\\" && i + 1 < input.length) {
+          buf += input[i + 1];
+          i += 1;
+          continue;
+        }
+        if (ch === '"') inDouble = false;
+        continue;
+      }
+
+      if (ch === "'") {
+        inSingle = true;
+        buf += ch;
+        continue;
+      }
+      if (ch === '"') {
+        inDouble = true;
+        buf += ch;
+        continue;
+      }
+
+      if (ch === "(") depthParen += 1;
+      else if (ch === ")") depthParen = Math.max(0, depthParen - 1);
+      else if (ch === "[") depthBracket += 1;
+      else if (ch === "]") depthBracket = Math.max(0, depthBracket - 1);
+      else if (ch === "{") depthBrace += 1;
+      else if (ch === "}") depthBrace = Math.max(0, depthBrace - 1);
+
+      if (ch === "," && depthParen === 0 && depthBracket === 0 && depthBrace === 0) {
+        flush();
+        continue;
+      }
+
+      buf += ch;
     }
 
-    const evalCond = async (cell: ReturnType<typeof getCell>): Promise<boolean> => {
+    flush();
+    return parts;
+  };
+
+  const asInteger = (value: unknown, label: string): number => {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new Error(`${label} must be a finite number`);
+    }
+    if (!Number.isInteger(value)) {
+      throw new Error(`${label} must be an integer`);
+    }
+    return value;
+  };
+
+  const runBlock = async (start: FlowLocation, endRow: number, indentColIndex: number): Promise<ControlSignal | null> => {
+    let cur = nextFrom(start);
+    while (cur) {
+      if (cur.row > endRow) return null;
+      if (cur.colIndex <= indentColIndex) return null;
+
+      const cell = grid.getCell(cur.row, cur.colIndex);
+      const outcome = await executeAt(cur, cell);
+      if (outcome.kind === "signal") {
+        return outcome.signal;
+      }
+      cur = outcome.next;
+    }
+    return null;
+  };
+
+  const executeIfCommand = async (ifCell: ReturnType<typeof grid.getCell>): Promise<StepOutcome> => {
+    const indentColIndex = ifCell.colIndex;
+
+    const evalCond = async (cell: ReturnType<typeof grid.getCell>): Promise<boolean> => {
       const condExpr = cell.command?.rawArgs ?? "";
       if (condExpr.trim().length === 0) {
         recordError(cell.cellRef, cell.row, cell.col, cell.raw ?? "", "if/elseif requires a condition expression");
@@ -725,54 +904,8 @@ export async function evaluateFlow(
       }
     };
 
-    const execBody = async (cmdCell: ReturnType<typeof getCell>): Promise<void> => {
-      const bodyCell = grid.getCell(cmdCell.row, cmdCell.colIndex + 1);
-      if (bodyCell.kind === "blank" || bodyCell.kind === "comment") {
-        return;
-      }
-      if (bodyCell.kind !== "expression") {
-        const kind = bodyCell.kind === "command" ? bodyCell.command?.kind ?? "unknown" : bodyCell.kind;
-        recordError(bodyCell.cellRef, bodyCell.row, bodyCell.col, bodyCell.raw ?? "", `Unsupported cell in if branch body: ${kind}`);
-        return;
-      }
-      await executeExpressionCell(bodyCell);
-    };
-
-    // Evaluate the primary if.
-    const ifTaken = await evalCond(ifCell);
-    if (ifTaken) {
-      await execBody(ifCell);
-      return nextFrom({ row, colIndex: chainEndColIndex + 1 }, true);
-    }
-
-    // Evaluate elseif/else branches left-to-right.
-    for (const branch of branches.slice(1)) {
-      const kind = branch.command?.kind;
-      if (kind === "elseif") {
-        const taken = await evalCond(branch);
-        if (taken) {
-          await execBody(branch);
-          return nextFrom({ row, colIndex: chainEndColIndex + 1 }, true);
-        }
-        continue;
-      }
-      if (kind === "else") {
-        scope[branch.cellRef] = null;
-        recordOk(branch.cellRef, branch.row, branch.col, branch.raw ?? "", null);
-        await execBody(branch);
-        return nextFrom({ row, colIndex: chainEndColIndex + 1 }, true);
-      }
-    }
-
-    // No branch taken.
-    recordOk(ifCell.cellRef, ifCell.row, ifCell.col, rawIf, scope[ifCell.cellRef]);
-    return nextFrom({ row, colIndex: chainEndColIndex + 1 }, true);
-  };
-
-  const executeMultiRowIfChain = async (ifCell: ReturnType<typeof getCell>): Promise<FlowLocation | null> => {
-    const indentColIndex = ifCell.colIndex;
-    const branches: Array<{ cmd: ReturnType<typeof getCell>; endRow: number }> = [];
-
+    // Row-unique dialect: branches are represented on later rows (no same-row chains).
+    const branches: Array<{ cmd: ReturnType<typeof grid.getCell>; endRow: number }> = [];
     const ifEndRow = getCodeBlockEndRow(grid, ifCell.row, indentColIndex);
     branches.push({ cmd: ifCell, endRow: ifEndRow });
 
@@ -793,105 +926,209 @@ export async function evaluateFlow(
     }
 
     const chainEndRow = branches[branches.length - 1].endRow;
+    const execBody = async (cmdRow: number, endRow: number): Promise<ControlSignal | null> =>
+      runBlock({ row: cmdRow, colIndex: indentColIndex + 1 }, endRow, indentColIndex);
 
-    const evalCond = async (cell: ReturnType<typeof getCell>): Promise<boolean> => {
-      const condExpr = cell.command?.rawArgs ?? "";
-      if (condExpr.trim().length === 0) {
-        recordError(cell.cellRef, cell.row, cell.col, cell.raw ?? "", "if/elseif requires a condition expression");
-        return false;
-      }
-      try {
-        const value = await evalExpression(condExpr);
-        scope[cell.cellRef] = value;
-        recordOk(cell.cellRef, cell.row, cell.col, cell.raw ?? "", value);
-        return truthy(value);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        recordError(cell.cellRef, cell.row, cell.col, cell.raw ?? "", message);
-        return false;
-      }
-    };
-
-    const execIndentedBlock = async (startRow: number, endRow: number): Promise<void> => {
-      let loc = setNext(grid, { row: startRow, colIndex: indentColIndex + 1 }, false, stack);
-      while (loc) {
-        if (loc.row > endRow) break;
-        if (loc.colIndex <= indentColIndex) break;
-
-        const cell = getCell(loc);
-        if (cell.kind === "expression") {
-          await executeExpressionCell(cell);
-        } else if (cell.kind === "command") {
-          const kind = cell.command?.kind ?? "unknown";
-          recordError(cell.cellRef, cell.row, cell.col, cell.raw ?? "", `Unsupported command cell: ${kind}`);
-        }
-
-        loc = nextAfter(loc, false);
-      }
-    };
-
-    // Primary if.
     if (await evalCond(ifCell)) {
-      await execIndentedBlock(ifCell.row, ifEndRow);
-      return setNext(grid, { row: chainEndRow + 1, colIndex: 1 }, true, stack);
+      const signal = await execBody(ifCell.row, ifEndRow);
+      if (signal) return { kind: "signal", signal };
+      return { kind: "next", next: nextFrom({ row: chainEndRow + 1, colIndex: 1 }) };
     }
 
-    // Elseif/else branches.
     for (const branch of branches.slice(1)) {
       const kind = branch.cmd.command?.kind;
       if (kind === "elseif") {
         if (await evalCond(branch.cmd)) {
-          await execIndentedBlock(branch.cmd.row, branch.endRow);
-          return setNext(grid, { row: chainEndRow + 1, colIndex: 1 }, true, stack);
+          const signal = await execBody(branch.cmd.row, branch.endRow);
+          if (signal) return { kind: "signal", signal };
+          return { kind: "next", next: nextFrom({ row: chainEndRow + 1, colIndex: 1 }) };
         }
         continue;
       }
       if (kind === "else") {
         scope[branch.cmd.cellRef] = null;
         recordOk(branch.cmd.cellRef, branch.cmd.row, branch.cmd.col, branch.cmd.raw ?? "", null);
-        await execIndentedBlock(branch.cmd.row, branch.endRow);
-        return setNext(grid, { row: chainEndRow + 1, colIndex: 1 }, true, stack);
+        const signal = await execBody(branch.cmd.row, branch.endRow);
+        if (signal) return { kind: "signal", signal };
+        return { kind: "next", next: nextFrom({ row: chainEndRow + 1, colIndex: 1 }) };
       }
     }
 
-    // No branch taken.
-    return setNext(grid, { row: chainEndRow + 1, colIndex: 1 }, true, stack);
+    return { kind: "next", next: nextFrom({ row: chainEndRow + 1, colIndex: 1 }) };
   };
 
-  const executeIfChain = async (ifCell: ReturnType<typeof getCell>): Promise<FlowLocation | null> => {
-    // Same-row if/else form exists when an else/elseif command appears to the right.
-    for (let colIndex = ifCell.colIndex + 1; colIndex <= grid.maxColIndex; colIndex++) {
-      const cell = grid.getCell(ifCell.row, colIndex);
-      if (cell.kind === "command" && (cell.command?.kind === "elseif" || cell.command?.kind === "else")) {
-        return executeSameRowIfChain(ifCell);
+  const executeForCommand = async (forCell: ReturnType<typeof grid.getCell>): Promise<StepOutcome> => {
+    const rawExpr = forCell.raw ?? "";
+    const args = (forCell.command?.rawArgs ?? "").trim();
+    const loopRef = forCell.cellRef;
+    const indentColIndex = forCell.colIndex;
+    const blockEndRow = getCodeBlockEndRow(grid, forCell.row, indentColIndex);
+
+    // Determine loop variant.
+    type LoopKind =
+      | { kind: "infinite" }
+      | { kind: "count"; n: number }
+      | { kind: "range"; start: number; end: number; step: number }
+      | { kind: "sequence"; values: unknown[] }
+      | { kind: "while"; condExpr: string };
+
+    let loop: LoopKind;
+    try {
+      if (args.length === 0) {
+        loop = { kind: "infinite" };
+      } else {
+        const parts = splitTopLevelCommas(args).filter((p) => p.length > 0);
+        if (parts.length >= 2) {
+          if (parts.length > 3) {
+            throw new Error("for range expects 2 or 3 arguments");
+          }
+          const start = asInteger(await evalExpression(parts[0]), "for start");
+          const end = asInteger(await evalExpression(parts[1]), "for end");
+          const step = parts.length === 3 ? asInteger(await evalExpression(parts[2]), "for step") : 1;
+          if (step === 0) {
+            throw new Error("for step must not be 0");
+          }
+          loop = { kind: "range", start, end, step };
+        } else {
+          const value = await evalExpression(args);
+          if (Array.isArray(value)) {
+            loop = { kind: "sequence", values: value };
+          } else if (value instanceof DataSet) {
+            loop = { kind: "sequence", values: (value as unknown as { rows: unknown[] }).rows ?? [] };
+          } else if (isDataSetLike(value)) {
+            loop = { kind: "sequence", values: (value.rows ?? []) as unknown[] };
+          } else if (typeof value === "number" && Number.isFinite(value) && Number.isInteger(value)) {
+            loop = { kind: "count", n: value };
+          } else if (typeof value === "boolean") {
+            loop = { kind: "while", condExpr: args };
+          } else {
+            throw new Error("Invalid for loop argument");
+          }
+        }
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      recordError(loopRef, forCell.row, forCell.col, rawExpr, message);
+      return { kind: "next", next: nextAfter({ row: forCell.row, colIndex: forCell.colIndex }) };
+    }
+
+    const runBody = async (): Promise<ControlSignal | null> =>
+      runBlock({ row: forCell.row, colIndex: indentColIndex + 1 }, blockEndRow, indentColIndex);
+
+    let seq = 0;
+    let rangeCur = loop.kind === "range" ? loop.start : 0;
+    let seqIdx = 0;
+
+    const hasNext = async (): Promise<{ done: boolean; value?: unknown }> => {
+      if (loop.kind === "infinite") {
+        return { done: false, value: seq + 1 };
+      }
+      if (loop.kind === "count") {
+        if (seq >= loop.n) return { done: true };
+        return { done: false, value: seq + 1 };
+      }
+      if (loop.kind === "range") {
+        if (loop.step > 0 && rangeCur > loop.end) return { done: true };
+        if (loop.step < 0 && rangeCur < loop.end) return { done: true };
+        return { done: false, value: rangeCur };
+      }
+      if (loop.kind === "sequence") {
+        if (seqIdx >= loop.values.length) return { done: true };
+        return { done: false, value: loop.values[seqIdx] };
+      }
+      // while
+      const condValue = await evalExpression(loop.condExpr);
+      if (!truthy(condValue)) return { done: true };
+      return { done: false, value: condValue };
+    };
+
+    while (true) {
+      const next = await hasNext();
+      if (next.done) break;
+
+      seq += 1;
+      loopSeq.set(loopRef, seq);
+      scope[loopRef] = next.value;
+      recordOk(loopRef, forCell.row, forCell.col, rawExpr, next.value);
+
+      const signal = await runBody();
+      if (signal) {
+        if (signal.type === "continue") {
+          if (!signal.target || signal.target === loopRef) {
+            // continue current loop
+          } else {
+            loopSeq.delete(loopRef);
+            return { kind: "signal", signal };
+          }
+        } else if (signal.type === "break") {
+          if (!signal.target || signal.target === loopRef) {
+            break;
+          }
+          loopSeq.delete(loopRef);
+          return { kind: "signal", signal };
+        } else {
+          loopSeq.delete(loopRef);
+          return { kind: "signal", signal };
+        }
+      }
+
+      if (loop.kind === "range") {
+        rangeCur += loop.step;
+      } else if (loop.kind === "sequence") {
+        seqIdx += 1;
       }
     }
-    return executeMultiRowIfChain(ifCell);
+
+    loopSeq.delete(loopRef);
+    return { kind: "next", next: nextFrom({ row: blockEndRow + 1, colIndex: 1 }) };
   };
 
-  let cur = setNext(grid, { row: 1, colIndex: 1 }, true, stack);
-  while (cur) {
-    const cell = getCell(cur);
-
+  const executeAt = async (loc: FlowLocation, cell: ReturnType<typeof grid.getCell>): Promise<StepOutcome> => {
     if (cell.kind === "expression") {
-      await executeExpressionCell(cell);
-      cur = nextAfter(cur, false);
-      continue;
+      await executeExpressionCell(cell.cellRef);
+      return { kind: "next", next: nextAfter(loc) };
     }
 
     if (cell.kind === "command") {
       const kind = cell.command?.kind ?? "unknown";
+      const rawExpr = cell.raw ?? "";
+
       if (kind === "if") {
-        cur = await executeIfChain(cell);
-        continue;
+        return executeIfCommand(cell);
       }
-      recordError(cell.cellRef, cell.row, cell.col, cell.raw ?? "", `Unsupported command cell: ${kind}`);
-      cur = nextAfter(cur, false);
-      continue;
+      if (kind === "for") {
+        return executeForCommand(cell);
+      }
+      if (kind === "break" || kind === "continue") {
+        const parsed = parseBreakContinueTarget(cell.cellRef, cell.command?.rawArgs ?? "");
+        if (parsed.error) {
+          recordError(cell.cellRef, cell.row, cell.col, rawExpr, parsed.error);
+          return { kind: "next", next: nextAfter(loc) };
+        }
+        scope[cell.cellRef] = null;
+        recordOk(cell.cellRef, cell.row, cell.col, rawExpr, null);
+        return {
+          kind: "signal",
+          signal: {
+            type: kind,
+            from: cell.cellRef,
+            target: parsed.target,
+          },
+        };
+      }
+
+      recordError(cell.cellRef, cell.row, cell.col, rawExpr, `Unsupported command cell: ${kind}`);
+      return { kind: "next", next: nextAfter(loc) };
     }
 
-    // Defensive: setNext shouldn't return blank/comment cells.
-    cur = nextAfter(cur, false);
+    // Defensive: setNext should skip blank/comment.
+    return { kind: "next", next: nextAfter(loc) };
+  };
+
+  const topSignal = await runBlock({ row: 1, colIndex: 1 }, grid.maxRow, 0);
+  if (topSignal && (topSignal.type === "break" || topSignal.type === "continue")) {
+    const origin = grid.getCellByRef(topSignal.from);
+    recordError(origin.cellRef, origin.row, origin.col, origin.raw ?? "", `${topSignal.type} used outside loop`);
   }
 
   const evaluations: FlowCellEvaluation[] = grid.cells.map((cell) => {

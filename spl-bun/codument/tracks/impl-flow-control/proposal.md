@@ -1,7 +1,7 @@
 # 变更：实现 SPL(Java) 的流程控制（TypeScript / spl-flow）
 
 ## 背景和动机 (Context And Why)
-当前 `packages/spl-flow` 只支持按顺序执行表达式单元格（把单元格内容交给 `@esproc/expression` 求值），缺少 SPL(Java) 里最关键的脚本级流程控制：`if/for/break/next/goto/func/return/try` 等。
+当前 `packages/spl-flow` 只支持按顺序执行表达式单元格（把单元格内容交给 `@esproc/expression` 求值），缺少 SPL(Java) 里最关键的脚本级流程控制：`if/for/break/continue/goto/func/return/try` 等。
 
 这导致：
 - Web-IDE 无法表达和运行更接近真实 SPL 的脚本逻辑。
@@ -12,6 +12,7 @@
 - 在 TypeScript 运行时实现 SPL(Java) 的核心流程控制语句（以 Java 支持的语义为准）。
 - 主要实现放在 `packages/spl-flow`；表达式级别的能力仅在 Java 确实由 expression 引擎承担时，才落到 `packages/expression`。
 - 兼容当前 Web-IDE 的输入习惯：表达式不要求前缀 `=`（但可兼容接受 `=`）。
+- TypeScript 方言差异：除注释格外，每行（row）最多一个可执行格；仅 `//` 开头为注释格，且注释格右侧同一行内容被忽略（行内注释）；循环继续使用 `continue` 关键字（不支持 `next`）。
 
 **非目标:**
 - 不实现 `fork/reduce/channel`（本 track 明确不做并发相关语义）。
@@ -23,8 +24,8 @@
 - 新增/扩展：
   - 语句识别与解析（command cells）
   - if/elseif/else
-  - for（整数/范围/序列/while）
-  - break/next（支持可选目标 cellRef）
+- for（整数/范围/序列/while）
+- break/continue（支持可选目标 cellRef）
   - goto（带安全约束）
   - func/return/result/end
   - try（捕获错误并把错误信息存入 try 单元格）

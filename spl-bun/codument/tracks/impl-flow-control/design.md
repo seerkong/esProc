@@ -25,7 +25,9 @@
 - Cell 分类（TypeScript 兼容策略）：
   - 默认：表达式格（无需 `=`）。
   - 如果以关键词开头：命令格（if/for/func/...）。
-  - 兼容 Java 前缀：`=`/`==`/`>`/`>>`/`/`/`//`（可选支持）。
+  - 兼容 Java 前缀：`=`/`>`（可选支持）。
+  - 注释格：仅当单元格 trim 后以 `//` 开头才视为注释格；并且该注释格右侧同一行的所有单元格都将被忽略（等价于行内注释）。
+  - 行约束：除注释格外，每一行（row）最多允许出现一个“有值且可执行”的单元格（command/expression）；否则应报错（便于 AST 与结构化语言同构）。
 
 2. 执行层：PgmCellSet-like 执行引擎
 - 维护运行时状态：
@@ -40,13 +42,13 @@
 3. 语句执行：最小语义子集对齐 Java
 - if / elseif / else
   - if 条件为真：进入其缩进块。
-  - 条件为假：寻找对应 elseif/else 分支（同一行右侧或后续同列）。
+  - 条件为假：寻找对应 elseif/else 分支（后续同列）。
   - else/elseif 在“非跳转进入”的情况下应当跳过其块。
 - for
   - 统一用 `ForFrame` 表示循环：存储 (row,col,endRow, iterator/seq)
   - 每次迭代更新 `scope[forCellRef]` 为当前值
   - 支持 `#<cellRef>` 在表达式中读取对应循环的序号（1-based）
-- break / next
+- break / continue
   - 无参数：作用于最近一层循环
   - 带参数：根据 cellRef 定位外层循环
 - goto
@@ -74,7 +76,7 @@
 
 ## 决策
 - 决策：采用“完整网格模型”而非“单列脚本缩进/括号块”模式。
-- 原因：SPL 的 if/for/func/try 语义与块边界强依赖“缩进列”，同时 break/next 的目标定位也依赖 cellRef。
+- 原因：SPL 的 if/for/func/try 语义与块边界强依赖“缩进列”，同时 break/continue 的目标定位也依赖 cellRef。
 
 ## 风险 / 权衡
 - 风险：Web-IDE 当前仅采集 A 列，短期内无法在 UI 侧直接编写多列缩进块。
@@ -85,11 +87,11 @@
 ## 兼容性设计
 - 兼容现有 demo：默认表达式格无需 `=` 前缀，保持现有行为。
 - 兼容 Java 示例：表达式格允许可选前缀 `=` 或 `>`（解析时剥离前缀再求值）。本 track 内不区分“可计算/可执行”的写回行为：表达式格一律写入 `scope[cellRef]`。
-- 注释格：以 `/` 或 `//` 开头的单元格视为注释并跳过。
+- 注释格：仅 `//` 开头的单元格视为注释；并且该注释格右侧同一行内容将被忽略（行内注释）。
 
 ## 迁移计划
 - 先引入执行引擎（保持“没有命令关键字时等价于原线性执行”）。
-- 再逐步加入 if/for/break/next/goto/func/return/result/end/try。
+- 再逐步加入 if/for/break/continue/goto/func/return/result/end/try。
 
 ## 待解决问题
 - `result` 是否需要与 `web-server` 的返回值（目前基于 lastQuery）做强绑定？建议：新增 flow-level returnValue，并在 server 侧优先返回它。

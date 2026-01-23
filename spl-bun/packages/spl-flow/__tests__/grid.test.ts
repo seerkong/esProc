@@ -37,7 +37,8 @@ describe("spl-flow grid model", () => {
 
     expect(grid.getCellByRef("A1")?.kind).toBe("blank");
     expect(grid.getCellByRef("A2")?.kind).toBe("comment");
-    expect(grid.getCellByRef("A3")?.kind).toBe("comment");
+    // TS dialect: only '//' starts a comment cell.
+    expect(grid.getCellByRef("A3")?.kind).toBe("expression");
 
     expect(grid.getCellByRef("A4")?.kind).toBe("expression");
     expect(grid.getCellByRef("A4")?.normalizedExpr).toBe("1 + 2");
@@ -49,10 +50,39 @@ describe("spl-flow grid model", () => {
 
     expect(grid.getCellByRef("A8")?.command?.kind).toBe("elseif");
     expect(grid.getCellByRef("A9")?.command?.kind).toBe("elseif");
-    expect(grid.getCellByRef("A10")?.command?.kind).toBe("next");
+    expect(grid.getCellByRef("A10")?.command?.kind).toBe("continue");
 
     // `if(...)` is an expression function call, not a statement command.
     expect(grid.getCellByRef("A11")?.kind).toBe("expression");
+  });
+
+  test("comment cells truncate the remainder of the row", () => {
+    const cells: FlowCell[] = [
+      { row: 1, col: "A", expr: "x = 1" },
+      { row: 1, col: "B", expr: "// inline comment" },
+      { row: 1, col: "C", expr: "x = 2" },
+    ];
+
+    const grid = buildFlowGrid(cells);
+    expect(grid.getCellByRef("A1")?.kind).toBe("expression");
+    expect(grid.getCellByRef("B1")?.kind).toBe("comment");
+    // Truncated cells are treated as missing (blank).
+    expect(grid.getCellByRef("C1")?.kind).toBe("blank");
+  });
+
+  test("rejects multiple executable cells in the same row", () => {
+    const cells: FlowCell[] = [
+      { row: 1, col: "A", expr: "1" },
+      { row: 1, col: "B", expr: "2" },
+    ];
+
+    expect(() => buildFlowGrid(cells)).toThrow(/Multiple executable cells in row 1/);
+  });
+
+  test("rejects 'next' with a clear hint", () => {
+    expect(() => buildFlowGrid([{ row: 1, col: "A", expr: "next" }])).toThrow(
+      "next is not supported; use continue",
+    );
   });
 
   test("grid lookup supports row/col addressing", () => {

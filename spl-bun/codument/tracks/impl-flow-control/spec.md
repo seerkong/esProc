@@ -14,7 +14,7 @@ Key difference vs Java SPL examples:
 
 Compatibility notes:
 - Java SPL examples often use an executable-cell leading `>` (e.g. `>x=x+1`). The runtime SHALL accept a leading `>` on expression cells, but MUST NOT require it.
-- Cells whose trimmed content begins with `/` or `//` are treated as comments and skipped during evaluation.
+- Only cells whose trimmed content begins with `//` are treated as comments and skipped during evaluation (single `/` is not a comment in this TypeScript dialect).
 
 ---
 
@@ -28,7 +28,10 @@ The `spl-flow` runtime SHALL evaluate a 2D grid of cells addressed by (row, col)
 - The runtime SHALL support nested code blocks using indentation (cells to the right of a command cell).
 
 - Expression cells MAY optionally start with a leading `=` or `>` prefix (Java SPL style); the runtime SHALL strip this prefix before evaluating the expression.
-- A blank cell is a cell whose content is empty/whitespace. A comment cell is a cell whose trimmed content begins with `/`.
+- A blank cell is a cell whose content is empty/whitespace.
+- A comment cell is a cell whose trimmed content begins with `//`.
+- A comment cell acts like a line comment: any cells to the right of the comment cell on the same row MUST be ignored (not evaluated and not part of the program).
+- After applying the comment-cell row truncation rule, the runtime MUST reject programs that contain more than one non-blank, non-comment cell with the same row number (one executable statement per row).
 
 #### Scenario: Basic sequential evaluation remains supported
 - **GIVEN** cells:
@@ -56,17 +59,42 @@ The `spl-flow` runtime SHALL evaluate a 2D grid of cells addressed by (row, col)
 - **THEN** `scope.A1` remains unset
 - **AND** `scope.A2` is `2`
 
+#### Scenario: Single '/' is not a comment
+- **GIVEN** cells:
+  - `A1: 6 / 2`
+- **WHEN** evaluating the flow
+- **THEN** `scope.A1` is `3`
+
+#### Scenario: Comment cells truncate the rest of the row
+- **GIVEN** cells:
+  - `A1: x = 1`
+  - `B1: // inline comment`
+  - `C1: x = 2`
+  - `A2: x`
+- **WHEN** evaluating the flow
+- **THEN** `scope.A2` is `1`
+- **AND** `scope.C1` remains unset
+
+#### Scenario: Multiple executable cells in the same row are rejected
+- **GIVEN** cells:
+  - `A1: 1`
+  - `B1: 2`
+- **WHEN** evaluating the flow
+- **THEN** evaluation fails with a clear error about multiple executable cells in row `1`
+
 
 ### Requirement: Recognize flow-control command cells
 The runtime SHALL recognize the following command keywords (case-insensitive) when they appear at the start of a trimmed cell string:
 
 - `if`, `else`, `elseif` (and `else if`)
 - `for`
-- `break`, `next` (alias: `continue`)
+- `break`, `continue`
 - `goto`
 - `func`
 - `return`, `result`, `end`
 - `try`
+
+The runtime MUST reject the statement keyword `next` (do not alias it to `continue`); evaluation MUST fail with error `next is not supported; use continue`.
 
 Non-command cells SHALL be treated as expression cells.
 
@@ -81,36 +109,44 @@ The runtime SHALL implement SPL-style conditional branching:
 
 - `if <condExpr>` evaluates `<condExpr>`; when truthy, it executes its indented block.
 - When the `if` condition is falsy, it SHALL execute the first matching `elseif` / `else if` branch, otherwise the `else` branch if present, otherwise it SHALL skip the entire if-chain.
-- `elseif` / `else if` branches MAY appear either:
-  - on the same row to the right of the `if`, or
-  - on later rows at the same column as the `if`.
+- `elseif` / `else if` branches MUST appear on later rows at the same column as the `if`.
 - When a branch is taken, remaining branches MUST be skipped.
 
 #### Scenario: Multi-row if/elseif/else selects the right branch
 - **GIVEN** cells:
-  - `A1: if x > 0`  `B1: x * 2`
-  - `A2: else if x == 0` `B2: 100`
-  - `A3: else` `B3: -1`
+  - `A1: if x > 0`
+  - `B2: x * 2`
+  - `A3: else if x == 0`
+  - `B4: 100`
+  - `A5: else`
+  - `B6: -1`
 - **WHEN** evaluating with `scope.x = 0`
-- **THEN** `scope.B2` is `100`
+- **THEN** `scope.B4` is `100`
+- **AND** `scope.B2` remains unset
+- **AND** `scope.B6` remains unset
 
-#### Scenario: Same-row if/else works and non-taken branch is skipped
+#### Scenario: if executes an indented block (one statement per row)
 - **GIVEN** cells:
-  - `A1: if x > 0` `B1: 10` `C1: else` `D1: -10`
+  - `A1: if x > 0`
+  - `B2: y = 1`
+  - `B3: y = y + 1`
+  - `A4: y`
 - **WHEN** evaluating with `scope.x = 1`
-- **THEN** `scope.B1` is `10`
-- **AND** `scope.D1` remains unset
+- **THEN** `scope.A4` is `2`
 
 #### Scenario: 'elseif' keyword is supported (no space)
 - **GIVEN** cells:
-  - `A1: if x > 0` `B1: 1`
-  - `A2: elseif x == 0` `B2: 2`
-  - `A3: else` `B3: 3`
+  - `A1: if x > 0`
+  - `B2: 1`
+  - `A3: elseif x == 0`
+  - `B4: 2`
+  - `A5: else`
+  - `B6: 3`
 - **WHEN** evaluating with `scope.x = 0`
-- **THEN** `scope.B2` is `2`
+- **THEN** `scope.B4` is `2`
 
 
-### Requirement: For loops + break/next
+### Requirement: For loops + break/continue
 The runtime SHALL implement SPL-style loops:
 
 - `for` (no args): infinite loop, exits only via `break` / `end`.
@@ -127,65 +163,92 @@ Loop sequence number:
 
 Control statements:
 - `break` exits the nearest loop.
-- `next` (and `continue`) skips to the next iteration of the nearest loop.
-- `break <cellRef>` and `next <cellRef>` target an outer loop whose `for` statement is located at `<cellRef>`.
+- `continue` skips to the next iteration of the nearest loop.
+- `break <cellRef>` and `continue <cellRef>` target an outer loop whose `for` statement is located at `<cellRef>`.
 
 #### Scenario: for n iterates 1..n
 - **GIVEN** cells:
   - `A1: sum = 0`
-  - `A2: for 3` `B2: sum += A2`
-  - `A3: sum`
+  - `A2: for 3`
+  - `B3: sum += A2`
+  - `A4: sum`
 - **WHEN** evaluating the flow
-- **THEN** `scope.A3` is `6`
+- **THEN** `scope.A4` is `6`
 
 #### Scenario: for start,end,step iterates an integer range
 - **GIVEN** cells:
   - `A1: sum = 0`
-  - `A2: for 1,5,2` `B2: sum += A2`
-  - `A3: sum`
+  - `A2: for 1,5,2`
+  - `B3: sum += A2`
+  - `A4: sum`
 - **WHEN** evaluating the flow
-- **THEN** `scope.A3` is `9`
+- **THEN** `scope.A4` is `9`
 
 #### Scenario: for sequenceExpr iterates the current element
 - **GIVEN** cells:
   - `A1: sum = 0`
-  - `A2: for [1,2,3]` `B2: sum += A2`
-  - `A3: sum`
+  - `A2: for [1,2,3]`
+  - `B3: sum += A2`
+  - `A4: sum`
 - **WHEN** evaluating the flow
-- **THEN** `scope.A3` is `6`
+- **THEN** `scope.A4` is `6`
 
 #### Scenario: for conditionExpr is a while-loop and #<cellRef> exposes iteration number
 - **GIVEN** cells:
   - `A1: total = 0`
   - `A2: i = 0`
-  - `A3: for i < 3` `B3: i += 1` `C3: total += #A3`
-  - `A4: total`
+  - `A3: for i < 3`
+  - `B4: i += 1`
+  - `B5: total += #A3`
+  - `A6: total`
 - **WHEN** evaluating the flow
-- **THEN** `scope.A4` is `6`
+- **THEN** `scope.A6` is `6`
 
 #### Scenario: for (no args) loops until break
 - **GIVEN** cells:
   - `A1: count = 0`
-  - `A2: for` `B2: count += 1` `C2: if count >= 3` `D2: break`
-  - `A3: count`
+  - `A2: for`
+  - `B3: count += 1`
+  - `B4: if count >= 3`
+  - `C5: break`
+  - `A6: count`
 - **WHEN** evaluating the flow
-- **THEN** `scope.A3` is `3`
+- **THEN** `scope.A6` is `3`
 
-#### Scenario: next/continue skips to next iteration
+#### Scenario: continue skips to next iteration
 - **GIVEN** cells:
   - `A1: sum = 0`
-  - `A2: for 5` `B2: if A2 == 3` `C2: continue` `D2: sum += A2`
-  - `A3: sum`
+  - `A2: for 5`
+  - `B3: if A2 == 3`
+  - `C4: continue`
+  - `B5: sum += A2`
+  - `A6: sum`
 - **WHEN** evaluating the flow
-- **THEN** `scope.A3` is `12`
+- **THEN** `scope.A6` is `12`
 
 #### Scenario: break <cellRef> exits an outer loop
 - **GIVEN** cells:
-  - `A1: out = 0`
-  - `A2: for 3` `B2: for 3` `C2: if A2 == 2 and B2 == 2` `D2: break A2` `E2: out = 999`
-  - `A3: out`
+  - `A1: hit = 0`
+  - `A2: for 3`
+  - `B3: for 3`
+  - `C4: if A2 == 2 and B3 == 2`
+  - `D5: break A2`
+  - `C6: hit += 1`
+  - `A7: hit`
 - **WHEN** evaluating the flow
-- **THEN** `scope.A3` is `0`
+- **THEN** `scope.A7` is `4`
+
+#### Scenario: continue <cellRef> continues an outer loop
+- **GIVEN** cells:
+  - `A1: hit = 0`
+  - `A2: for 3`
+  - `B3: for 3`
+  - `C4: if A2 == 2 and B3 == 3`
+  - `D5: continue A2`
+  - `C6: hit += 1`
+  - `A7: hit`
+- **WHEN** evaluating the flow
+- **THEN** `scope.A7` is `8`
 
 
 ### Requirement: goto
@@ -205,8 +268,9 @@ The runtime SHALL support `goto <cellRef>`.
 
 #### Scenario: goto into deeper indentation is rejected
 - **GIVEN** cells:
-  - `A1: for 2` `B1: x = 1`
-  - `A2: goto B1`
+  - `A1: for 2`
+  - `B2: x = 1`
+  - `A3: goto B2`
 - **WHEN** evaluating the flow
 - **THEN** evaluation fails with a clear error (must not allow jumping into loop bodies)
 
@@ -228,25 +292,28 @@ The runtime SHALL support SPL-style subroutines (code blocks) defined by a `func
 
 #### Scenario: Simple subroutine call returns a value
 - **GIVEN** cells:
-  - `A1: func` `B1: return A1 + B1`
-  - `A2: func(A1, 1, 2)`
+  - `A1: func`
+  - `B2: return A1 + B1`
+  - `A3: func(A1, 1, 2)`
 - **WHEN** evaluating the flow
-- **THEN** `scope.A2` is `3`
+- **THEN** `scope.A3` is `3`
 
 #### Scenario: func bodies do not execute during top-level flow execution
 - **GIVEN** cells:
-  - `A1: func` `B1: x = 1`
-  - `A2: x = 2`
-  - `A3: x`
+  - `A1: func`
+  - `B2: x = 1`
+  - `A3: x = 2`
+  - `A4: x`
 - **WHEN** evaluating the flow
-- **THEN** `scope.A3` is `2`
+- **THEN** `scope.A4` is `2`
 
 #### Scenario: Subroutine without explicit return returns last expression value
 - **GIVEN** cells:
-  - `A1: func` `B1: A1 + B1`
-  - `A2: func(A1, 1, 2)`
+  - `A1: func`
+  - `B2: A1 + B1`
+  - `A3: func(A1, 1, 2)`
 - **WHEN** evaluating the flow
-- **THEN** `scope.A2` is `3`
+- **THEN** `scope.A3` is `3`
 
 #### Scenario: result terminates flow execution early
 - **GIVEN** cells:
@@ -275,16 +342,18 @@ The runtime SHALL support SPL-style `try` blocks.
 
 #### Scenario: try captures an error and continues
 - **GIVEN** cells:
-  - `A1: try` `B1: unknownFunc()`
-  - `A2: 1 + 1`
+  - `A1: try`
+  - `B2: unknownFunc()`
+  - `A3: 1 + 1`
 - **WHEN** evaluating the flow
 - **THEN** `scope.A1` is a non-empty error string
-- **AND** `scope.A2` is `2`
+- **AND** `scope.A3` is `2`
 
 #### Scenario: try succeeds and stores null
 - **GIVEN** cells:
-  - `A1: try` `B1: 1 + 1`
-  - `A2: 1 + 1`
+  - `A1: try`
+  - `B2: 1 + 1`
+  - `A3: 1 + 1`
 - **WHEN** evaluating the flow
 - **THEN** `scope.A1` is `null`
-- **AND** `scope.A2` is `2`
+- **AND** `scope.A3` is `2`
