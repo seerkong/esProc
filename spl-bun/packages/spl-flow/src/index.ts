@@ -14,6 +14,7 @@ import { ConnectionRegistry } from "./connection/registry";
 import { createDataSourceHandle } from "./connection/handle";
 import { DataSourceFactory } from "./datasource/factory";
 import type { DataSourceConfig } from "./datasource/types";
+import { buildFlowGrid } from "./flow/grid";
 
 export type FlowStepKind = "expr" | "query";
 
@@ -592,20 +593,44 @@ export async function evaluateFlow(
   const evaluations: FlowCellEvaluation[] = [];
   let lastQuery: unknown;
 
-  const ast = buildFlowAst(cells);
+  const grid = buildFlowGrid(cells);
   ensureDbHandles(scope, ctx);
 
-  for (const cell of ast.block.flat()) {
-    const expression = cell.expr ?? "";
-    const ref = cell.id;
-    const row = cell.position.row;
-    const col = cell.position.col;
+  for (const cell of grid.cells) {
+    const row = cell.row;
+    const col = cell.col;
+    const ref = cell.cellRef;
+    const rawExpr = cell.raw ?? "";
 
-    if (!expression.trim()) {
+    if (cell.kind === "blank" || cell.kind === "comment") {
+      // Blank/comment cells are skipped by SPL navigation rules.
       evaluations.push({
         row,
         col,
-        expr: "",
+        expr: rawExpr,
+        status: "ok",
+      });
+      continue;
+    }
+
+    if (cell.kind === "command") {
+      const kind = cell.command?.kind ?? "unknown";
+      evaluations.push({
+        row,
+        col,
+        expr: rawExpr,
+        status: "error",
+        error: `Unsupported command cell: ${kind}`,
+      });
+      continue;
+    }
+
+    const expression = (cell.normalizedExpr ?? "").trim();
+    if (expression.length === 0) {
+      evaluations.push({
+        row,
+        col,
+        expr: rawExpr,
         status: "error",
         error: "Empty expression",
       });
@@ -656,7 +681,7 @@ export async function evaluateFlow(
       evaluations.push({
         row,
         col,
-        expr: expression,
+        expr: rawExpr,
         status: "ok",
         result: value,
       });
@@ -666,7 +691,7 @@ export async function evaluateFlow(
       evaluations.push({
         row,
         col,
-        expr: expression,
+        expr: rawExpr,
         status: "error",
         error: message,
       });

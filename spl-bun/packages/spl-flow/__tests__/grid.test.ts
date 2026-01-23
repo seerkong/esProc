@@ -30,6 +30,7 @@ describe("spl-flow grid model", () => {
       { row: 8, col: "A", expr: "ELSE if x == 0" },
       { row: 9, col: "A", expr: "elseif x == 0" },
       { row: 10, col: "A", expr: "continue" },
+      { row: 11, col: "A", expr: "if(1==1, 1, 2)" },
     ];
 
     const grid = buildFlowGrid(cells);
@@ -49,6 +50,9 @@ describe("spl-flow grid model", () => {
     expect(grid.getCellByRef("A8")?.command?.kind).toBe("elseif");
     expect(grid.getCellByRef("A9")?.command?.kind).toBe("elseif");
     expect(grid.getCellByRef("A10")?.command?.kind).toBe("next");
+
+    // `if(...)` is an expression function call, not a statement command.
+    expect(grid.getCellByRef("A11")?.kind).toBe("expression");
   });
 
   test("grid lookup supports row/col addressing", () => {

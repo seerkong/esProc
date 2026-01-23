@@ -110,13 +110,15 @@ export function parseCommandCell(textInput: string): FlowCommand | null {
   if (text.length === 0) return null;
 
   // Order matters: else-if must be checked before else.
-  const elseIfMatch = text.match(/^else\s+if\b/i);
+  const elseIfMatch = text.match(/^else\s+if(?:\s|$)/i);
   if (elseIfMatch) {
     const rawArgs = text.slice(elseIfMatch[0].length).trim();
     return { kind: "elseif", rawArgs };
   }
 
-  const keywordMatch = text.match(/^([A-Za-z]+)\b/);
+  // Statements are keyword-based and require whitespace (or end-of-cell) after the keyword.
+  // This avoids mis-classifying expression calls like `if(...)` as a statement.
+  const keywordMatch = text.match(/^([A-Za-z]+)(?=\s|$)/);
   if (!keywordMatch) return null;
 
   const keyword = keywordMatch[1].toLowerCase();
