@@ -6,6 +6,9 @@ Key scope rules:
 - Primary implementation lives in `packages/spl-flow`.
 - Expression-level behavior goes to `packages/expression` only when Java SPL implements it in the expression engine; otherwise keep it in `spl-flow`.
 
+Explicit exclusions (out of scope for this track):
+- `fork`, `reduce`, `channel`
+
 Key difference vs Java SPL examples:
 - Java SPL often shows calculable cells with a leading `=`. In this project (Web-IDE), expressions are entered without a leading `=`. The runtime SHALL accept both forms, but MUST NOT require `=`.
 
@@ -66,6 +69,21 @@ The runtime SHALL implement SPL-style conditional branching:
 - **WHEN** evaluating with `scope.x = 0`
 - **THEN** `scope.B2` is `100`
 
+#### Scenario: Same-row if/else works and non-taken branch is skipped
+- **GIVEN** cells:
+  - `A1: if x > 0` `B1: 10` `C1: else` `D1: -10`
+- **WHEN** evaluating with `scope.x = 1`
+- **THEN** `scope.B1` is `10`
+- **AND** `scope.D1` remains unset
+
+#### Scenario: 'elseif' keyword is supported (no space)
+- **GIVEN** cells:
+  - `A1: if x > 0` `B1: 1`
+  - `A2: elseif x == 0` `B2: 2`
+  - `A3: else` `B3: 3`
+- **WHEN** evaluating with `scope.x = 0`
+- **THEN** `scope.B2` is `2`
+
 
 ### Requirement: For loops + break/next
 The runtime SHALL implement SPL-style loops:
@@ -79,6 +97,9 @@ The runtime SHALL implement SPL-style loops:
 Loop variable binding:
 - For each iteration, the loop variable (current value) SHALL be written into the loop cell's `cellRef` (e.g. the `for` at `A1` writes the current value into `scope.A1`).
 
+Loop sequence number:
+- The runtime SHALL support `#<cellRef>` inside expressions to read the current loop sequence number (1-based) for the loop whose `for` statement is located at `<cellRef>`.
+
 Control statements:
 - `break` exits the nearest loop.
 - `next` (and `continue`) skips to the next iteration of the nearest loop.
@@ -91,6 +112,55 @@ Control statements:
   - `A3: sum`
 - **WHEN** evaluating the flow
 - **THEN** `scope.A3` is `6`
+
+#### Scenario: for start,end,step iterates an integer range
+- **GIVEN** cells:
+  - `A1: sum = 0`
+  - `A2: for 1,5,2` `B2: sum += A2`
+  - `A3: sum`
+- **WHEN** evaluating the flow
+- **THEN** `scope.A3` is `9`
+
+#### Scenario: for sequenceExpr iterates the current element
+- **GIVEN** cells:
+  - `A1: sum = 0`
+  - `A2: for [1,2,3]` `B2: sum += A2`
+  - `A3: sum`
+- **WHEN** evaluating the flow
+- **THEN** `scope.A3` is `6`
+
+#### Scenario: for conditionExpr is a while-loop and #<cellRef> exposes iteration number
+- **GIVEN** cells:
+  - `A1: total = 0`
+  - `A2: i = 0`
+  - `A3: for i < 3` `B3: i += 1` `C3: total += #A3`
+  - `A4: total`
+- **WHEN** evaluating the flow
+- **THEN** `scope.A4` is `6`
+
+#### Scenario: for (no args) loops until break
+- **GIVEN** cells:
+  - `A1: count = 0`
+  - `A2: for` `B2: count += 1` `C2: if count >= 3` `D2: break`
+  - `A3: count`
+- **WHEN** evaluating the flow
+- **THEN** `scope.A3` is `3`
+
+#### Scenario: next/continue skips to next iteration
+- **GIVEN** cells:
+  - `A1: sum = 0`
+  - `A2: for 5` `B2: if A2 == 3` `C2: continue` `D2: sum += A2`
+  - `A3: sum`
+- **WHEN** evaluating the flow
+- **THEN** `scope.A3` is `12`
+
+#### Scenario: break <cellRef> exits an outer loop
+- **GIVEN** cells:
+  - `A1: out = 0`
+  - `A2: for 3` `B2: for 3` `C2: if A2 == 2 and B2 == 2` `D2: break A2` `E2: out = 999`
+  - `A3: out`
+- **WHEN** evaluating the flow
+- **THEN** `scope.A3` is `0`
 
 
 ### Requirement: goto
@@ -107,6 +177,13 @@ The runtime SHALL support `goto <cellRef>`.
   - `A4: x = 2`
 - **WHEN** evaluating the flow
 - **THEN** `scope.A4` is `2` and `scope.A3` remains unset
+
+#### Scenario: goto into deeper indentation is rejected
+- **GIVEN** cells:
+  - `A1: for 2` `B1: x = 1`
+  - `A2: goto B1`
+- **WHEN** evaluating the flow
+- **THEN** evaluation fails with a clear error (must not allow jumping into loop bodies)
 
 
 ### Requirement: Subroutines (func) and returns
@@ -131,6 +208,37 @@ The runtime SHALL support SPL-style subroutines (code blocks) defined by a `func
 - **WHEN** evaluating the flow
 - **THEN** `scope.A2` is `3`
 
+#### Scenario: func bodies do not execute during top-level flow execution
+- **GIVEN** cells:
+  - `A1: func` `B1: x = 1`
+  - `A2: x = 2`
+  - `A3: x`
+- **WHEN** evaluating the flow
+- **THEN** `scope.A3` is `2`
+
+#### Scenario: Subroutine without explicit return returns last expression value
+- **GIVEN** cells:
+  - `A1: func` `B1: A1 + B1`
+  - `A2: func(A1, 1, 2)`
+- **WHEN** evaluating the flow
+- **THEN** `scope.A2` is `3`
+
+#### Scenario: result terminates flow execution early
+- **GIVEN** cells:
+  - `A1: result 1 + 1`
+  - `A2: x = 1`
+- **WHEN** evaluating the flow
+- **THEN** the flow terminates with result value `2`
+- **AND** `scope.A2` remains unset
+
+#### Scenario: end terminates flow with an error message
+- **GIVEN** cells:
+  - `A1: end "boom"`
+  - `A2: 1 + 1`
+- **WHEN** evaluating the flow
+- **THEN** evaluation throws an error containing "boom"
+- **AND** `scope.A2` remains unset
+
 
 ### Requirement: try (error capture)
 The runtime SHALL support SPL-style `try` blocks.
@@ -146,4 +254,12 @@ The runtime SHALL support SPL-style `try` blocks.
   - `A2: 1 + 1`
 - **WHEN** evaluating the flow
 - **THEN** `scope.A1` is a non-empty error string
+- **AND** `scope.A2` is `2`
+
+#### Scenario: try succeeds and stores null
+- **GIVEN** cells:
+  - `A1: try` `B1: 1 + 1`
+  - `A2: 1 + 1`
+- **WHEN** evaluating the flow
+- **THEN** `scope.A1` is `null`
 - **AND** `scope.A2` is `2`

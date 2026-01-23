@@ -45,6 +45,7 @@
 - for
   - 统一用 `ForFrame` 表示循环：存储 (row,col,endRow, iterator/seq)
   - 每次迭代更新 `scope[forCellRef]` 为当前值
+  - 支持 `#<cellRef>` 在表达式中读取对应循环的序号（1-based）
 - break / next
   - 无参数：作用于最近一层循环
   - 带参数：根据 cellRef 定位外层循环
@@ -56,7 +57,7 @@
   - 子程序调用使用 expression 函数：`func(<masterCell>, x1, x2, ...)`（Java SPL 语义）
     - 需要在 `packages/expression` 对 `func(...)` 做特殊处理：第一个参数如果是形如 `A1` 的 cellRef，应作为 cellRef 传递，而不是取 `scope.A1` 的值
     - 调用时把参数从 master cell 开始按列写入（x1→master cell, x2→右侧同一行下一格...），然后执行该块，直到 return 或块结束
-    - 若块内未执行 return，则返回该块内最后一个计算格（以 `=` 开头）的值（若不存在则返回 null）
+    - 若块内未执行 return，则返回该块内最后一个表达式格的值（若不存在则返回 null）
   - return 只在子程序调用栈中生效（返回到调用点）
   - result 终止整个 flow 执行并返回指定值
   - end 终止执行（可带错误信息）
@@ -91,4 +92,4 @@
 
 ## 待解决问题
 - `result` 是否需要与 `web-server` 的返回值（目前基于 lastQuery）做强绑定？建议：新增 flow-level returnValue，并在 server 侧优先返回它。
-- 是否在本 track 支持 `#A1` 循环序号语法（需要 expression 解析扩展）？如果不做，需要明确为后续 track。
+  - 结论：在本 track 内实现，并在 `evaluateFlow` 返回值中暴露该 result。
