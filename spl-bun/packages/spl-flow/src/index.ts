@@ -4,6 +4,7 @@ import {
   FunctionRegistryBuilder,
   makeDbHandle,
   makeFileHandle,
+  truthy,
   type FunctionRegistry,
 } from "@esproc/expression";
 import { DataSet } from "@esproc/core";
@@ -15,6 +16,7 @@ import { createDataSourceHandle } from "./connection/handle";
 import { DataSourceFactory } from "./datasource/factory";
 import type { DataSourceConfig } from "./datasource/types";
 import { buildFlowGrid } from "./flow/grid";
+import { getCodeBlockEndRow, setNext, type FlowLocation, type FlowStackFrame } from "./flow/navigation";
 
 export type FlowStepKind = "expr" | "query";
 
@@ -590,113 +592,318 @@ export async function evaluateFlow(
   if (ctx.workspaceRoot === undefined) {
     ctx.workspaceRoot = process.cwd();
   }
-  const evaluations: FlowCellEvaluation[] = [];
+  const evalByRef = new Map<string, FlowCellEvaluation>();
   let lastQuery: unknown;
 
   const grid = buildFlowGrid(cells);
   ensureDbHandles(scope, ctx);
 
-  for (const cell of grid.cells) {
-    const row = cell.row;
-    const col = cell.col;
-    const ref = cell.cellRef;
+  const stack: FlowStackFrame[] = [];
+
+  const recordOk = (cellRef: string, row: number, col: string, rawExpr: string, result?: unknown) => {
+    const evaluation: FlowCellEvaluation = {
+      row,
+      col,
+      expr: rawExpr,
+      status: "ok",
+    };
+    if (result !== undefined) {
+      evaluation.result = result;
+    }
+    evalByRef.set(cellRef, evaluation);
+  };
+
+  const recordError = (cellRef: string, row: number, col: string, rawExpr: string, message: string) => {
+    evalByRef.set(cellRef, {
+      row,
+      col,
+      expr: rawExpr,
+      status: "error",
+      error: message,
+    });
+  };
+
+  const getCell = (loc: FlowLocation) => grid.getCell(loc.row, loc.colIndex);
+
+  const nextAfter = (loc: FlowLocation, checkStack: boolean): FlowLocation | null =>
+    setNext(grid, { row: loc.row, colIndex: loc.colIndex + 1 }, checkStack, stack);
+
+  const nextFrom = (loc: FlowLocation, checkStack: boolean): FlowLocation | null =>
+    setNext(grid, loc, checkStack, stack);
+
+  const evalExpression = async (expression: string): Promise<unknown> => {
+    const connectionName = inferConnectionName(expression);
+    const hasConnection = Boolean(connectionName && ctx.connections?.has(connectionName));
+    const hasDataSource = Boolean(connectionName && ctx.dataSourceConfigs?.some((config) => config.name === connectionName));
+
+    if (connectionName && !scope[connectionName] && hasConnection) {
+      const connection = resolveConnection(connectionName, ctx);
+      scope[connectionName] = createDbHandle(connection, ctx);
+    }
+
+    if (connectionName && !scope[connectionName] && hasDataSource && ctx.dataSourceConfigs) {
+      const registry = new ConnectionRegistry();
+      for (const config of ctx.dataSourceConfigs) {
+        registry.register(config);
+      }
+      const dataSource = registry.get(connectionName);
+      if (dataSource) {
+        scope[connectionName] = createDataSourceHandle(dataSource);
+      }
+    }
+
+    if (connectionName && !scope[connectionName] && !hasConnection && !hasDataSource) {
+      throw new Error(`Connection '${connectionName}' not found`);
+    }
+
+    const qValue = resolveQQuery(expression, ctx, scope);
+    const registry = resolveExpressionFunctions(ctx);
+    const compiled = qValue === null ? compileExpression(expression, registry, defaultMemberRegistry) : null;
+    let value = qValue === null ? compiled!.evaluate(scope) : qValue;
+    if (value instanceof Promise) {
+      value = await value;
+    }
+    return value;
+  };
+
+  const executeExpressionCell = async (cell: ReturnType<typeof getCell>): Promise<void> => {
     const rawExpr = cell.raw ?? "";
-
-    if (cell.kind === "blank" || cell.kind === "comment") {
-      // Blank/comment cells are skipped by SPL navigation rules.
-      evaluations.push({
-        row,
-        col,
-        expr: rawExpr,
-        status: "ok",
-      });
-      continue;
-    }
-
-    if (cell.kind === "command") {
-      const kind = cell.command?.kind ?? "unknown";
-      evaluations.push({
-        row,
-        col,
-        expr: rawExpr,
-        status: "error",
-        error: `Unsupported command cell: ${kind}`,
-      });
-      continue;
-    }
-
     const expression = (cell.normalizedExpr ?? "").trim();
     if (expression.length === 0) {
-      evaluations.push({
-        row,
-        col,
-        expr: rawExpr,
-        status: "error",
-        error: "Empty expression",
-      });
-      continue;
+      recordError(cell.cellRef, cell.row, cell.col, rawExpr, "Empty expression");
+      return;
     }
-
     try {
-      const connectionName = inferConnectionName(expression);
-      const hasConnection = Boolean(connectionName && ctx.connections?.has(connectionName));
-      const hasDataSource = Boolean(connectionName && ctx.dataSourceConfigs?.some((config) => config.name === connectionName));
-
-      if (connectionName && !scope[connectionName] && hasConnection) {
-        const connection = resolveConnection(connectionName, ctx);
-        scope[connectionName] = createDbHandle(connection, ctx);
-      }
-
-      if (connectionName && !scope[connectionName] && hasDataSource && ctx.dataSourceConfigs) {
-        const registry = new ConnectionRegistry();
-        for (const config of ctx.dataSourceConfigs) {
-          registry.register(config);
-        }
-        const dataSource = registry.get(connectionName);
-        if (dataSource) {
-          scope[connectionName] = createDataSourceHandle(dataSource);
-        }
-      }
-
-      if (connectionName && !scope[connectionName] && !hasConnection && !hasDataSource) {
-        throw new Error(`Connection '${connectionName}' not found`);
-      }
-
-      const qValue = resolveQQuery(expression, ctx, scope);
-      const registry = resolveExpressionFunctions(ctx);
-      const compiled = qValue === null
-        ? compileExpression(expression, registry, defaultMemberRegistry)
-        : null;
-      let value = qValue === null ? compiled!.evaluate(scope) : qValue;
-      if (value instanceof Promise) {
-        value = await value;
-      }
-      scope[ref] = value;
+      const value = await evalExpression(expression);
+      scope[cell.cellRef] = value;
 
       const queryResult = toQueryResult(value);
       if (queryResult) {
         lastQuery = queryResult;
       }
 
-      evaluations.push({
-        row,
-        col,
-        expr: rawExpr,
-        status: "ok",
-        result: value,
-      });
+      recordOk(cell.cellRef, cell.row, cell.col, rawExpr, value);
     } catch (error) {
-
       const message = error instanceof Error ? error.message : String(error);
-      evaluations.push({
-        row,
-        col,
-        expr: rawExpr,
-        status: "error",
-        error: message,
-      });
+      recordError(cell.cellRef, cell.row, cell.col, rawExpr, message);
     }
+  };
+
+  const executeSameRowIfChain = async (ifCell: ReturnType<typeof getCell>): Promise<FlowLocation | null> => {
+    const row = ifCell.row;
+    const indentColIndex = ifCell.colIndex;
+    const rawIf = ifCell.raw ?? "";
+
+    const branches: Array<ReturnType<typeof getCell>> = [ifCell];
+    let chainEndColIndex = indentColIndex + 1;
+
+    // Find else/elseif branches on the same row to the right.
+    for (let colIndex = indentColIndex + 2; colIndex <= grid.maxColIndex; colIndex++) {
+      const cell = grid.getCell(row, colIndex);
+      if (cell.kind === "command" && (cell.command?.kind === "elseif" || cell.command?.kind === "else")) {
+        branches.push(cell);
+        chainEndColIndex = Math.max(chainEndColIndex, cell.colIndex + 1);
+        colIndex = cell.colIndex + 1;
+      }
+    }
+
+    const evalCond = async (cell: ReturnType<typeof getCell>): Promise<boolean> => {
+      const condExpr = cell.command?.rawArgs ?? "";
+      if (condExpr.trim().length === 0) {
+        recordError(cell.cellRef, cell.row, cell.col, cell.raw ?? "", "if/elseif requires a condition expression");
+        return false;
+      }
+      try {
+        const value = await evalExpression(condExpr);
+        scope[cell.cellRef] = value;
+        recordOk(cell.cellRef, cell.row, cell.col, cell.raw ?? "", value);
+        return truthy(value);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        recordError(cell.cellRef, cell.row, cell.col, cell.raw ?? "", message);
+        return false;
+      }
+    };
+
+    const execBody = async (cmdCell: ReturnType<typeof getCell>): Promise<void> => {
+      const bodyCell = grid.getCell(cmdCell.row, cmdCell.colIndex + 1);
+      if (bodyCell.kind === "blank" || bodyCell.kind === "comment") {
+        return;
+      }
+      if (bodyCell.kind !== "expression") {
+        const kind = bodyCell.kind === "command" ? bodyCell.command?.kind ?? "unknown" : bodyCell.kind;
+        recordError(bodyCell.cellRef, bodyCell.row, bodyCell.col, bodyCell.raw ?? "", `Unsupported cell in if branch body: ${kind}`);
+        return;
+      }
+      await executeExpressionCell(bodyCell);
+    };
+
+    // Evaluate the primary if.
+    const ifTaken = await evalCond(ifCell);
+    if (ifTaken) {
+      await execBody(ifCell);
+      return nextFrom({ row, colIndex: chainEndColIndex + 1 }, true);
+    }
+
+    // Evaluate elseif/else branches left-to-right.
+    for (const branch of branches.slice(1)) {
+      const kind = branch.command?.kind;
+      if (kind === "elseif") {
+        const taken = await evalCond(branch);
+        if (taken) {
+          await execBody(branch);
+          return nextFrom({ row, colIndex: chainEndColIndex + 1 }, true);
+        }
+        continue;
+      }
+      if (kind === "else") {
+        scope[branch.cellRef] = null;
+        recordOk(branch.cellRef, branch.row, branch.col, branch.raw ?? "", null);
+        await execBody(branch);
+        return nextFrom({ row, colIndex: chainEndColIndex + 1 }, true);
+      }
+    }
+
+    // No branch taken.
+    recordOk(ifCell.cellRef, ifCell.row, ifCell.col, rawIf, scope[ifCell.cellRef]);
+    return nextFrom({ row, colIndex: chainEndColIndex + 1 }, true);
+  };
+
+  const executeMultiRowIfChain = async (ifCell: ReturnType<typeof getCell>): Promise<FlowLocation | null> => {
+    const indentColIndex = ifCell.colIndex;
+    const branches: Array<{ cmd: ReturnType<typeof getCell>; endRow: number }> = [];
+
+    const ifEndRow = getCodeBlockEndRow(grid, ifCell.row, indentColIndex);
+    branches.push({ cmd: ifCell, endRow: ifEndRow });
+
+    let scanRow = ifEndRow + 1;
+    while (scanRow <= grid.maxRow) {
+      const nextCell = grid.getCell(scanRow, indentColIndex);
+      if (nextCell.kind === "blank" || nextCell.kind === "comment") {
+        scanRow += 1;
+        continue;
+      }
+      if (nextCell.kind === "command" && (nextCell.command?.kind === "elseif" || nextCell.command?.kind === "else")) {
+        const endRow = getCodeBlockEndRow(grid, nextCell.row, indentColIndex);
+        branches.push({ cmd: nextCell, endRow });
+        scanRow = endRow + 1;
+        continue;
+      }
+      break;
+    }
+
+    const chainEndRow = branches[branches.length - 1].endRow;
+
+    const evalCond = async (cell: ReturnType<typeof getCell>): Promise<boolean> => {
+      const condExpr = cell.command?.rawArgs ?? "";
+      if (condExpr.trim().length === 0) {
+        recordError(cell.cellRef, cell.row, cell.col, cell.raw ?? "", "if/elseif requires a condition expression");
+        return false;
+      }
+      try {
+        const value = await evalExpression(condExpr);
+        scope[cell.cellRef] = value;
+        recordOk(cell.cellRef, cell.row, cell.col, cell.raw ?? "", value);
+        return truthy(value);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        recordError(cell.cellRef, cell.row, cell.col, cell.raw ?? "", message);
+        return false;
+      }
+    };
+
+    const execIndentedBlock = async (startRow: number, endRow: number): Promise<void> => {
+      let loc = setNext(grid, { row: startRow, colIndex: indentColIndex + 1 }, false, stack);
+      while (loc) {
+        if (loc.row > endRow) break;
+        if (loc.colIndex <= indentColIndex) break;
+
+        const cell = getCell(loc);
+        if (cell.kind === "expression") {
+          await executeExpressionCell(cell);
+        } else if (cell.kind === "command") {
+          const kind = cell.command?.kind ?? "unknown";
+          recordError(cell.cellRef, cell.row, cell.col, cell.raw ?? "", `Unsupported command cell: ${kind}`);
+        }
+
+        loc = nextAfter(loc, false);
+      }
+    };
+
+    // Primary if.
+    if (await evalCond(ifCell)) {
+      await execIndentedBlock(ifCell.row, ifEndRow);
+      return setNext(grid, { row: chainEndRow + 1, colIndex: 1 }, true, stack);
+    }
+
+    // Elseif/else branches.
+    for (const branch of branches.slice(1)) {
+      const kind = branch.cmd.command?.kind;
+      if (kind === "elseif") {
+        if (await evalCond(branch.cmd)) {
+          await execIndentedBlock(branch.cmd.row, branch.endRow);
+          return setNext(grid, { row: chainEndRow + 1, colIndex: 1 }, true, stack);
+        }
+        continue;
+      }
+      if (kind === "else") {
+        scope[branch.cmd.cellRef] = null;
+        recordOk(branch.cmd.cellRef, branch.cmd.row, branch.cmd.col, branch.cmd.raw ?? "", null);
+        await execIndentedBlock(branch.cmd.row, branch.endRow);
+        return setNext(grid, { row: chainEndRow + 1, colIndex: 1 }, true, stack);
+      }
+    }
+
+    // No branch taken.
+    return setNext(grid, { row: chainEndRow + 1, colIndex: 1 }, true, stack);
+  };
+
+  const executeIfChain = async (ifCell: ReturnType<typeof getCell>): Promise<FlowLocation | null> => {
+    // Same-row if/else form exists when an else/elseif command appears to the right.
+    for (let colIndex = ifCell.colIndex + 1; colIndex <= grid.maxColIndex; colIndex++) {
+      const cell = grid.getCell(ifCell.row, colIndex);
+      if (cell.kind === "command" && (cell.command?.kind === "elseif" || cell.command?.kind === "else")) {
+        return executeSameRowIfChain(ifCell);
+      }
+    }
+    return executeMultiRowIfChain(ifCell);
+  };
+
+  let cur = setNext(grid, { row: 1, colIndex: 1 }, true, stack);
+  while (cur) {
+    const cell = getCell(cur);
+
+    if (cell.kind === "expression") {
+      await executeExpressionCell(cell);
+      cur = nextAfter(cur, false);
+      continue;
+    }
+
+    if (cell.kind === "command") {
+      const kind = cell.command?.kind ?? "unknown";
+      if (kind === "if") {
+        cur = await executeIfChain(cell);
+        continue;
+      }
+      recordError(cell.cellRef, cell.row, cell.col, cell.raw ?? "", `Unsupported command cell: ${kind}`);
+      cur = nextAfter(cur, false);
+      continue;
+    }
+
+    // Defensive: setNext shouldn't return blank/comment cells.
+    cur = nextAfter(cur, false);
   }
+
+  const evaluations: FlowCellEvaluation[] = grid.cells.map((cell) => {
+    const existing = evalByRef.get(cell.cellRef);
+    if (existing) return existing;
+
+    if (cell.kind === "blank" || cell.kind === "comment") {
+      return { row: cell.row, col: cell.col, expr: cell.raw ?? "", status: "ok" };
+    }
+    // Skipped cells (e.g., non-taken branches) are considered OK but produce no value.
+    return { row: cell.row, col: cell.col, expr: cell.raw ?? "", status: "ok" };
+  });
 
   return { cells: evaluations, lastQuery, scope };
 }
