@@ -59,6 +59,26 @@ bun run cleanup:backend
 - **4175**: Vite 前端备用端口
 - **4176**: 后端 API 服务器
 
+## E2E 测试（Playwright）
+
+运行 E2E 测试：
+
+```bash
+bun run test:e2e
+```
+
+**说明：**
+- 用例目录：`packages/web-ide/__tests__/e2e/`
+- 测试会按 `playwright.config.ts` 自动启动两进程：
+  - 后端：`bun run dev:backend`（`http://localhost:4176/api/health`）
+  - 前端：`bun run dev:frontend`（`http://localhost:4174`）
+
+首次运行若提示缺少浏览器（Chromium 等），执行：
+
+```bash
+bun x playwright install
+```
+
 ## 故障排除
 
 ### 端口被占用
