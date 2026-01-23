@@ -7,6 +7,7 @@ import type { FUniver, FWorkbook } from "@univerjs/presets";
 import { createGrid, type GridApi, type GridOptions, type ColDef } from "ag-grid-community";
 import { apiRoutes, type ExecuteRequest, type ExecuteResponse, type QueryResultData } from "@esproc/web-shared";
 import { initAgGrid } from "../utils/agGridInit";
+import { collectFlowDefFromSheet } from "../utils/collectFlowDef";
 
 import "@univerjs/preset-sheets-core/lib/index.css";
 import "ag-grid-community/styles/ag-grid.css";
@@ -28,6 +29,10 @@ type DemoCell = {
 };
 
 const CELL_COL_A_CODE = "A".charCodeAt(0);
+
+// Keep collection/clearing bounded for performance and demo consistency.
+const DEMO_MAX_ROWS = 20;
+const DEMO_MAX_COLS = 8;
 
 type Demo = {
   id: string;
@@ -348,45 +353,29 @@ onUnmounted(() => {
 });
 
 /**
- * Collect all non-empty values from column A (column index 0)
- * Returns an array of strings
+ * Collect all non-empty values from a bounded grid region.
+ * This enables multi-column indentation blocks (B/C/D...) for flow-control demos.
  */
-function collectColumnA(): ExecuteRequest {
+function collectFlowGrid(): ExecuteRequest {
   const flowDef: ExecuteRequest["flowDef"] = [];
   if (!workbook) return { flowDef };
 
   const sheet = workbook.getActiveSheet();
   if (!sheet) return { flowDef };
 
-  const maxRows = sheet.getMaxRows();
-  const colIndex = 0;
-
-  for (let r = 0; r < maxRows; r++) {
-    let val: unknown;
-    try {
-      val = sheet.getRange(r, colIndex)?.getValue();
-    } catch {
-      continue;
-    }
-
-    if (val === undefined || val === null) continue;
-    const text = String(val).trim();
-    if (text.length === 0) continue;
-
-    flowDef.push({ row: r + 1, col: "A", expr: text });
-  }
-
+  const cells = collectFlowDefFromSheet(sheet, { maxRows: DEMO_MAX_ROWS, maxCols: DEMO_MAX_COLS });
+  flowDef.push(...cells);
   return { flowDef };
 }
 
 /**
- * Run sheet: collect expressions from column A, send to backend, display results
+ * Run sheet: collect expressions from the grid, send to backend, display results
  */
 async function runSheet() {
   status.value = "Running...";
 
   try {
-    const payload: ExecuteRequest = collectColumnA();
+    const payload: ExecuteRequest = collectFlowGrid();
 
     if (payload.flowDef.length === 0) {
       status.value = "No expressions to evaluate";
@@ -459,8 +448,8 @@ function resetSheet() {
   if (!sheet) return;
 
   // Clear all cells
-  for (let r = 0; r < 20; r++) {
-    for (let c = 0; c < 8; c++) {
+  for (let r = 0; r < DEMO_MAX_ROWS; r++) {
+    for (let c = 0; c < DEMO_MAX_COLS; c++) {
       const range = sheet.getRange(r, c);
       range?.setValue("");
     }
@@ -487,9 +476,9 @@ function loadDemo() {
   const sheet = workbook.getActiveSheet();
   if (!sheet) return;
 
-  // Clear 20x8 grid similar to resetSheet
-  for (let r = 0; r < 20; r++) {
-    for (let c = 0; c < 8; c++) {
+  // Clear bounded demo grid similar to resetSheet
+  for (let r = 0; r < DEMO_MAX_ROWS; r++) {
+    for (let c = 0; c < DEMO_MAX_COLS; c++) {
       sheet.getRange(r, c)?.setValue("");
     }
   }
