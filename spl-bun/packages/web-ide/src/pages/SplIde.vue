@@ -626,10 +626,17 @@ function displayResultInGrid(data: QueryResultData) {
 
   const { columns, rows } = data;
 
+  // AG Grid infers a column data type from initial row values. Our demos often
+  // return an export-table shape { columns: ["name","value"], rows: [...] }
+  // where the "value" column mixes numbers and strings. Disable inference for
+  // that shape so strings don't render as "Invalid Number".
+  const isExportTable = columns.length === 2 && columns[0] === "name" && columns[1] === "value";
+
   // Build column definitions from result columns
   const columnDefs: ColDef[] = columns.map((col) => ({
     field: col,
     headerName: col,
+    cellDataType: isExportTable ? false : undefined,
   }));
 
   // Update AG Grid
