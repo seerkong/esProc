@@ -9,8 +9,8 @@
 import { Elysia } from "elysia";
 import cors from "@elysiajs/cors";
 import { Database } from "bun:sqlite";
-import { readFileSync, existsSync, mkdirSync } from "fs";
-import { join, dirname } from "path";
+import { readFileSync, existsSync, mkdirSync, rmSync } from "fs";
+import { join, dirname, isAbsolute, resolve as resolvePath } from "path";
 import { fileURLToPath } from "url";
 import {
   apiRoutes,
@@ -23,79 +23,78 @@ import { buildFlowScope, evaluateFlow, type DBConnection, type DataSourceConfig 
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const WORKSPACE_ROOT = join(__dirname, "..");
-const OUT_DIR = join(WORKSPACE_ROOT, "data", "out");
-if (!existsSync(OUT_DIR)) {
-  mkdirSync(OUT_DIR, { recursive: true });
-}
+const DEFAULT_WORKSPACE_ROOT = join(__dirname, "..");
+const DEFAULT_DB_PATH = join(__dirname, "../data/demo.db");
+const DEFAULT_INIT_SQL_PATH = join(__dirname, "../data/demo-init.sql");
+const DEFAULT_EXTENSION_SQL_PATH = join(__dirname, "../data/demo-extension.sql");
 
-const DB_PATH = join(__dirname, "../data/demo.db");
-const INIT_SQL_PATH = join(__dirname, "../data/demo-init.sql");
 const SALES_CSV_PATH = join(__dirname, "../data/sales.csv");
 const PRODUCTS_CSV_PATH = join(__dirname, "../data/products.csv");
 const CONFIG_JSON_PATH = join(__dirname, "../data/config.json");
 const USERS_JSON_PATH = join(__dirname, "../data/users.json");
 
-const EXTENSION_SQL = `
-CREATE TABLE IF NOT EXISTS CUSTOMERS(
-  CUSTOMER_ID INTEGER PRIMARY KEY,
-  NAME TEXT,
-  EMAIL TEXT,
-  REGION_ID INTEGER
-);
-CREATE TABLE IF NOT EXISTS ORDERS(
-  ORDER_ID INTEGER PRIMARY KEY,
-  CUSTOMER_ID INTEGER,
-  PRODUCT_ID INTEGER,
-  QUANTITY INTEGER,
-  ORDER_DATE TEXT
-);
-WITH RECURSIVE seq(x) AS (
-  SELECT 1
-  UNION ALL SELECT x + 1 FROM seq WHERE x < 24
-)
-INSERT INTO CUSTOMERS (CUSTOMER_ID, NAME, EMAIL, REGION_ID)
-SELECT x,
-  printf('Customer %02d', x),
-  printf('customer%02d@example.com', x),
-  ((x - 1) % 4) + 1
-FROM seq
-WHERE NOT EXISTS (SELECT 1 FROM CUSTOMERS LIMIT 1);
-WITH RECURSIVE seq(x) AS (
-  SELECT 1
-  UNION ALL SELECT x + 1 FROM seq WHERE x < 120
-)
-INSERT INTO ORDERS (ORDER_ID, CUSTOMER_ID, PRODUCT_ID, QUANTITY, ORDER_DATE)
-SELECT x,
-  ((x - 1) % 24) + 1,
-  ((x - 1) % 25) + 1,
-  ((x - 1) % 5) + 1,
-  date('2025-01-01', printf('+%d day', x))
-FROM seq
-WHERE NOT EXISTS (SELECT 1 FROM ORDERS LIMIT 1);
-`;
+function parseEnvBool(value: string | undefined): boolean {
+  if (!value) return false;
+  return value === "1" || value.toLowerCase() === "true";
+}
+
+function resolveMaybeRelativePath(input: string): string {
+  // Used for resolving workspaceRoot only.
+  return isAbsolute(input) ? input : resolvePath(process.cwd(), input);
+}
+
+function removeSqliteDbFiles(dbPath: string) {
+  for (const suffix of ["", "-wal", "-shm", "-journal"]) {
+    const p = `${dbPath}${suffix}`;
+    if (!existsSync(p)) continue;
+    try {
+      rmSync(p, { force: true });
+    } catch {
+      // Best effort cleanup; startup will fail later if the file is truly locked.
+    }
+  }
+}
+
+type InitDatabaseOptions = {
+  dbPath: string;
+  initSqlPath: string;
+  extensionSqlPath: string;
+  resetDb: boolean;
+};
 
 /**
- * Initialize the demo SQLite database
+ * Initialize the demo SQLite database.
+ *
+ * - Base schema/data comes from demo-init.sql.
+ * - Web-IDE extension tables come from demo-extension.sql (idempotent).
  */
-function initDatabase(): Database {
-  // Ensure data directory exists
-  const dataDir = dirname(DB_PATH);
-  if (!existsSync(dataDir)) {
-    mkdirSync(dataDir, { recursive: true });
+function initDatabase(opts: InitDatabaseOptions): Database {
+  const dbPath = opts.dbPath;
+  const initSqlPath = opts.initSqlPath;
+  const extensionSqlPath = opts.extensionSqlPath;
+
+  const isMemoryDb = dbPath === ":memory:";
+
+  if (!isMemoryDb) {
+    const dataDir = dirname(dbPath);
+    if (!existsSync(dataDir)) {
+      mkdirSync(dataDir, { recursive: true });
+    }
   }
 
-  // Check if database already exists
-  const dbExists = existsSync(DB_PATH);
-  const db = new Database(DB_PATH);
+  if (opts.resetDb && !isMemoryDb) {
+    removeSqliteDbFiles(dbPath);
+  }
 
-  if (dbExists) {
-    console.log("[Server] Using existing demo.db");
+  const dbExists = !isMemoryDb && existsSync(dbPath);
+  const db = new Database(dbPath);
+
+  if (dbExists && !opts.resetDb) {
+    console.log(`[Server] Using existing demo.db at ${dbPath}`);
   } else {
-    console.log("[Server] Created new demo.db");
-    // Read and execute initialization SQL
-    if (existsSync(INIT_SQL_PATH)) {
-      const initSql = readFileSync(INIT_SQL_PATH, "utf-8");
+    console.log(`[Server] Created new demo.db at ${dbPath}`);
+    if (existsSync(initSqlPath)) {
+      const initSql = readFileSync(initSqlPath, "utf-8");
       db.exec(initSql);
       console.log("[Server] Initialized database from demo-init.sql");
     } else {
@@ -103,8 +102,13 @@ function initDatabase(): Database {
     }
   }
 
-  // Ensure extension tables are present even when demo.db already exists.
-  db.exec(EXTENSION_SQL);
+  // Always ensure extension tables are present.
+  if (existsSync(extensionSqlPath)) {
+    const extensionSql = readFileSync(extensionSqlPath, "utf-8");
+    db.exec(extensionSql);
+  } else {
+    console.warn(`[Server] Warning: demo-extension.sql not found at ${extensionSqlPath}`);
+  }
 
   return db;
 }
@@ -142,111 +146,164 @@ function executeMutation(db: Database, sql: string, params?: unknown[]): { chang
   return { changes, lastInsertRowid };
 }
 
-// Initialize database and connection registry
-const db = initDatabase();
-const connections = new Map<string, DBConnection>([
-  ["demo", { name: "demo", type: "sqlite", path: DB_PATH }],
-]);
-const dataSourceConfigs: DataSourceConfig[] = [
-  { type: "sqlite", name: "demo", path: DB_PATH },
-  { type: "csv", name: "sales", path: SALES_CSV_PATH, hasHeader: true },
-  { type: "csv", name: "products", path: PRODUCTS_CSV_PATH, hasHeader: true },
-  { type: "json", name: "config", path: CONFIG_JSON_PATH },
-  { type: "json", name: "users", path: USERS_JSON_PATH },
-];
-const databases = new Map<string, Database>([["demo", db]]);
+export type CreateAppOptions = {
+  dbPath?: string;
+  initSqlPath?: string;
+  extensionSqlPath?: string;
+  workspaceRoot?: string;
+  resetDb?: boolean;
+};
 
-// Create Elysia server
-const app = new Elysia()
-  .use(
-    cors({
-      origin: "*",
-    })
-  )
-  .get(apiRoutes.health, () => ({ status: "ok" }))
-  .post(apiRoutes.execute, async ({ body }): Promise<ExecuteResponse> => {
-    const payload = body as ExecuteRequest;
-    const expressions = payload?.flowDef ?? [];
-    console.log("[Server] Received expressions:", expressions);
+export function createApp(options: CreateAppOptions = {}) {
+  const workspaceRoot = resolveMaybeRelativePath(options.workspaceRoot ?? process.env.SPL_WORKSPACE_ROOT ?? DEFAULT_WORKSPACE_ROOT);
 
-    if (!Array.isArray(expressions) || expressions.length === 0) {
-      return { status: "error", error: "No expression provided" };
-    }
+  const resolveInWorkspace = (input: string) => (isAbsolute(input) ? input : resolvePath(workspaceRoot, input));
 
-    const executeAdapter = ({ connection, sql, params }: { connection?: DBConnection; sql: string; params?: unknown[] }) => {
-      const target = connection?.name ?? "demo";
-      const targetDb = databases.get(target);
-      if (!targetDb) {
-        throw new Error(`Connection '${target}' not found`);
+  const outDir = join(workspaceRoot, "data", "out");
+  if (!existsSync(outDir)) {
+    mkdirSync(outDir, { recursive: true });
+  }
+
+  const dbPathInput = options.dbPath ?? process.env.SPL_DEMO_DB_PATH ?? DEFAULT_DB_PATH;
+  const initSqlPathInput = options.initSqlPath ?? process.env.SPL_DEMO_INIT_SQL_PATH ?? DEFAULT_INIT_SQL_PATH;
+  const extensionSqlPathInput = options.extensionSqlPath ?? process.env.SPL_DEMO_EXTENSION_SQL_PATH ?? DEFAULT_EXTENSION_SQL_PATH;
+  const resetDb = options.resetDb ?? parseEnvBool(process.env.SPL_DEMO_DB_RESET);
+
+  const dbPath = resolveInWorkspace(dbPathInput);
+  const initSqlPath = resolveInWorkspace(initSqlPathInput);
+  const extensionSqlPath = resolveInWorkspace(extensionSqlPathInput);
+
+  const db = initDatabase({ dbPath, initSqlPath, extensionSqlPath, resetDb });
+
+  const connections = new Map<string, DBConnection>([["demo", { name: "demo", type: "sqlite", path: dbPath }]]);
+  const dataSourceConfigs: DataSourceConfig[] = [
+    { type: "sqlite", name: "demo", path: dbPath },
+    { type: "csv", name: "sales", path: SALES_CSV_PATH, hasHeader: true },
+    { type: "csv", name: "products", path: PRODUCTS_CSV_PATH, hasHeader: true },
+    { type: "json", name: "config", path: CONFIG_JSON_PATH },
+    { type: "json", name: "users", path: USERS_JSON_PATH },
+  ];
+  const databases = new Map<string, Database>([["demo", db]]);
+
+  const app = new Elysia()
+    .use(
+      cors({
+        origin: "*",
+      })
+    )
+    .get(apiRoutes.health, () => ({ status: "ok" }))
+    .post(apiRoutes.execute, async ({ body }): Promise<ExecuteResponse> => {
+      const payload = body as ExecuteRequest;
+      const expressions = payload?.flowDef ?? [];
+      console.log("[Server] Received expressions:", expressions);
+
+      if (!Array.isArray(expressions) || expressions.length === 0) {
+        return { status: "error", error: "No expression provided" };
       }
-      return executeQuery(targetDb, sql, params);
-    };
 
-    const executeMutationAdapter = ({ connection, sql, params }: { connection?: DBConnection; sql: string; params?: unknown[] }) => {
-      const target = connection?.name ?? "demo";
-      const targetDb = databases.get(target);
-      if (!targetDb) {
-        throw new Error(`Connection '${target}' not found`);
-      }
-      return executeMutation(targetDb, sql, params);
-    };
+      const executeAdapter = ({
+        connection,
+        sql,
+        params,
+      }: {
+        connection?: DBConnection;
+        sql: string;
+        params?: unknown[];
+      }) => {
+        const target = connection?.name ?? "demo";
+        const targetDb = databases.get(target);
+        if (!targetDb) {
+          throw new Error(`Connection '${target}' not found`);
+        }
+        return executeQuery(targetDb, sql, params);
+      };
 
-    const baseScope = buildFlowScope({
-      connections,
-      dataSourceConfigs,
-      defaultDbPath: DB_PATH,
-      workspaceRoot: WORKSPACE_ROOT,
-      adapters: {
-        sqliteQuery: executeAdapter,
-        sqliteExecute: executeMutationAdapter,
-      },
-    });
+      const executeMutationAdapter = ({
+        connection,
+        sql,
+        params,
+      }: {
+        connection?: DBConnection;
+        sql: string;
+        params?: unknown[];
+      }) => {
+        const target = connection?.name ?? "demo";
+        const targetDb = databases.get(target);
+        if (!targetDb) {
+          throw new Error(`Connection '${target}' not found`);
+        }
+        return executeMutation(targetDb, sql, params);
+      };
 
-    let flowResult: Awaited<ReturnType<typeof evaluateFlow>>;
-    try {
-      flowResult = await evaluateFlow(expressions, {
+      const baseScope = buildFlowScope({
         connections,
         dataSourceConfigs,
-        defaultDbPath: DB_PATH,
-        workspaceRoot: WORKSPACE_ROOT,
-        scope: baseScope,
+        defaultDbPath: dbPath,
+        workspaceRoot,
         adapters: {
           sqliteQuery: executeAdapter,
           sqliteExecute: executeMutationAdapter,
         },
       });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return { status: "error", error: message };
-    }
 
-    const { cells, lastQuery } = flowResult;
+      let flowResult: Awaited<ReturnType<typeof evaluateFlow>>;
+      try {
+        flowResult = await evaluateFlow(expressions, {
+          connections,
+          dataSourceConfigs,
+          defaultDbPath: dbPath,
+          workspaceRoot,
+          scope: baseScope,
+          adapters: {
+            sqliteQuery: executeAdapter,
+            sqliteExecute: executeMutationAdapter,
+          },
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { status: "error", error: message };
+      }
 
-    const mappedCells: ExecuteCellResult[] = cells.map((cell) => ({
-      expr: cell.expr,
-      row: cell.row,
-      col: cell.col,
-      status: cell.status,
-      result: cell.result,
-      error: cell.error,
-    }));
+      const { cells, lastQuery } = flowResult;
 
-    const hasError = mappedCells.some((cell) => cell.status === "error");
-    if (hasError) {
-      const firstError = mappedCells.find((cell) => cell.status === "error");
-      return { status: "error", error: firstError?.error ?? "Unknown error", cells: mappedCells };
-    }
+      const mappedCells: ExecuteCellResult[] = cells.map((cell) => ({
+        expr: cell.expr,
+        row: cell.row,
+        col: cell.col,
+        status: cell.status,
+        result: cell.result,
+        error: cell.error,
+      }));
 
-    const resultData = isQueryResult(lastQuery) ? (lastQuery as QueryResultData) : undefined;
-    return { status: "ok", data: resultData, cells: mappedCells };
-  });
+      const hasError = mappedCells.some((cell) => cell.status === "error");
+      if (hasError) {
+        const firstError = mappedCells.find((cell) => cell.status === "error");
+        return { status: "error", error: firstError?.error ?? "Unknown error", cells: mappedCells };
+      }
 
-// Start server
-const PORT = Number(process.env.PORT ?? 4176);
-app.listen(PORT);
-console.log(`[Server] SPL IDE backend listening on http://localhost:${PORT}`);
+      const resultData = isQueryResult(lastQuery) ? (lastQuery as QueryResultData) : undefined;
+      return { status: "ok", data: resultData, cells: mappedCells };
+    });
 
-export { app };
+  return {
+    app,
+    db,
+    dispose: () => {
+      try {
+        db.close();
+      } catch {
+        // Best effort.
+      }
+    },
+  };
+}
+
+if (import.meta.main) {
+  const { app } = createApp();
+  const PORT = Number(process.env.PORT ?? 4176);
+  app.listen(PORT);
+  console.log(`[Server] SPL IDE backend listening on http://localhost:${PORT}`);
+}
 
 function isQueryResult(value: unknown): value is QueryResultData {
   return Boolean(
