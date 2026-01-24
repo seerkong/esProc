@@ -11,11 +11,10 @@
 
   "dependencies": {
     "@esproc/web-shared": "workspace:*",
+    "@tanstack/vue-table": "^8.21.3",
     "@univerjs/engine-formula": "^0.15.1",
     "@univerjs/preset-sheets-core": "^0.15.1",
     "@univerjs/presets": "^0.15.1",
-    "ag-grid-community": "34.1.2",
-    "ag-grid-enterprise": "34.1.2",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   },

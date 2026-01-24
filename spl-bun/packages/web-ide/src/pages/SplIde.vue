@@ -4,23 +4,20 @@ import { UniverSheetsCorePreset } from "@univerjs/preset-sheets-core";
 import UniverPresetSheetsCoreEnUS from "@univerjs/preset-sheets-core/locales/en-US";
 import { createUniver, LocaleType, mergeLocales } from "@univerjs/presets";
 import type { FUniver, FWorkbook } from "@univerjs/presets";
-import { createGrid, type GridApi, type GridOptions, type ColDef } from "ag-grid-community";
 import { apiRoutes, type ExecuteRequest, type ExecuteResponse, type QueryResultData } from "@esproc/web-shared";
-import { initAgGrid } from "../utils/agGridInit";
 import { collectFlowDefFromSheet } from "../utils/collectFlowDef";
+import ResultTable from "../components/ResultTable.vue";
 
 import "@univerjs/preset-sheets-core/lib/index.css";
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-alpine.css";
-
-// Initialize AG Grid modules
-initAgGrid();
 
 // Backend server URL - configurable via environment variable
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4176";
 
 const univerContainerRef = ref<HTMLDivElement>();
-const agGridContainerRef = ref<HTMLDivElement>();
+
+// Result data for ResultTable component
+const resultColumns = ref<string[]>([]);
+const resultRows = ref<Record<string, any>[]>([]);
 
 type DemoCell = {
   row: number;
@@ -467,7 +464,6 @@ const selectedDemoId = ref<string>(demos[0].id);
 
 let univerAPI: FUniver | null = null;
 let workbook: FWorkbook | null = null;
-let gridApi: GridApi | null = null;
 
 declare global {
   interface Window {
@@ -526,29 +522,10 @@ onMounted(() => {
   }
 
   console.log("[SPL-IDE] Univer created without formula engine");
-
-  // Initialize AG Grid with empty config
-  if (agGridContainerRef.value) {
-    const gridOptions: GridOptions = {
-      columnDefs: [],
-      rowData: [],
-      defaultColDef: {
-        resizable: true,
-        sortable: true,
-        filter: true,
-        flex: 1,
-        minWidth: 100,
-      },
-      suppressMovableColumns: true,
-    };
-
-    gridApi = createGrid(agGridContainerRef.value, gridOptions);
-  }
 });
 
 onUnmounted(() => {
   univerAPI?.disposeUniver();
-  gridApi?.destroy();
 });
 
 /**
@@ -600,17 +577,15 @@ async function runSheet() {
     const result: ExecuteResponse = await response.json();
     console.log("[SPL-IDE] Received result from backend:", result);
 
-    // Display result in AG Grid
+    // Display result in ResultTable
     if (result.status === "ok" && result.data) {
-      displayResultInGrid(result.data);
+      displayResult(result.data);
       status.value = `Done (${result.data.rows?.length ?? 0} rows)`;
     } else if (result.status === "error") {
       status.value = `Error: ${result.error}`;
-      // Clear grid on error
-      if (gridApi) {
-        gridApi.setGridOption("columnDefs", []);
-        gridApi.setGridOption("rowData", []);
-      }
+      // Clear result on error
+      resultColumns.value = [];
+      resultRows.value = [];
     }
   } catch (err: any) {
     console.error("[SPL-IDE] Error:", err);
@@ -619,29 +594,11 @@ async function runSheet() {
 }
 
 /**
- * Display query result in AG Grid with column headers
+ * Display query result in ResultTable
  */
-function displayResultInGrid(data: QueryResultData) {
-  if (!gridApi) return;
-
-  const { columns, rows } = data;
-
-  // AG Grid infers a column data type from initial row values. Our demos often
-  // return an export-table shape { columns: ["name","value"], rows: [...] }
-  // where the "value" column mixes numbers and strings. Disable inference for
-  // that shape so strings don't render as "Invalid Number".
-  const isExportTable = columns.length === 2 && columns[0] === "name" && columns[1] === "value";
-
-  // Build column definitions from result columns
-  const columnDefs: ColDef[] = columns.map((col) => ({
-    field: col,
-    headerName: col,
-    cellDataType: isExportTable ? false : undefined,
-  }));
-
-  // Update AG Grid
-  gridApi.setGridOption("columnDefs", columnDefs);
-  gridApi.setGridOption("rowData", rows);
+function displayResult(data: QueryResultData) {
+  resultColumns.value = data.columns;
+  resultRows.value = data.rows;
 }
 
 /**
@@ -667,11 +624,9 @@ function resetSheet() {
   const a2 = sheet.getRange(1, 0);
   a2?.setValue('db.query("select * from STATES")');
 
-  // Clear AG Grid
-  if (gridApi) {
-    gridApi.setGridOption("columnDefs", []);
-    gridApi.setGridOption("rowData", []);
-  }
+  // Clear result table
+  resultColumns.value = [];
+  resultRows.value = [];
 
   status.value = "Idle";
 }
@@ -701,11 +656,9 @@ function loadDemo() {
     }
   });
 
-  // Clear AG Grid view when loading a demo
-  if (gridApi) {
-    gridApi.setGridOption("columnDefs", []);
-    gridApi.setGridOption("rowData", []);
-  }
+  // Clear result table when loading a demo
+  resultColumns.value = [];
+  resultRows.value = [];
 
   status.value = `Loaded: ${demo.label}`;
 }
@@ -736,7 +689,7 @@ function loadDemo() {
 
     <div class="section result-section">
       <div class="section-title">Query Results</div>
-      <div class="ag-grid-container ag-theme-alpine" ref="agGridContainerRef"></div>
+      <ResultTable :columns="resultColumns" :rows="resultRows" />
     </div>
   </div>
 </template>
@@ -831,11 +784,6 @@ function loadDemo() {
 
 .result-section {
   flex: 1;
-}
-
-.ag-grid-container {
-  height: 300px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  min-height: 300px;
 }
 </style>

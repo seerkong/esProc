@@ -1,30 +1,22 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, shallowRef } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { UniverSheetsCorePreset } from "@univerjs/preset-sheets-core";
 import UniverPresetSheetsCoreEnUS from "@univerjs/preset-sheets-core/locales/en-US";
 import { createUniver, LocaleType, mergeLocales } from "@univerjs/presets";
 import type { FUniver, FWorkbook } from "@univerjs/presets";
-import { createGrid, type GridApi, type GridOptions } from "ag-grid-community";
 import { customFunctions } from "../formulas/custom-formulas";
-import { initAgGrid } from "../utils/agGridInit";
+import ResultTable from "../components/ResultTable.vue";
 
 import "@univerjs/preset-sheets-core/lib/index.css";
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-alpine.css";
-
-// Initialize AG Grid modules
-initAgGrid();
 
 const univerContainerRef = ref<HTMLDivElement>();
-const agGridContainerRef = ref<HTMLDivElement>();
 
 const status = ref<string>("Idle");
-const rowData = shallowRef<Record<string, any>[]>([]);
-const columnDefs = shallowRef<{ field: string; headerName: string }[]>([]);
+const resultColumns = ref<string[]>([]);
+const resultRows = ref<Record<string, any>[]>([]);
 
 let univerAPI: FUniver | null = null;
 let workbook: FWorkbook | null = null;
-let gridApi: GridApi | null = null;
 
 onMounted(() => {
   if (!univerContainerRef.value) return;
@@ -88,27 +80,10 @@ onMounted(() => {
   });
 
   console.log("[Univer] Custom formulas registered: DOUBLE, GREET, CUSTOMSUM");
-
-  // Initialize AG Grid
-  if (agGridContainerRef.value) {
-    const gridOptions: GridOptions = {
-      columnDefs: [],
-      rowData: [],
-      defaultColDef: {
-        resizable: true,
-        sortable: true,
-        flex: 1,
-      },
-      suppressMovableColumns: true,
-    };
-
-    gridApi = createGrid(agGridContainerRef.value, gridOptions);
-  }
 });
 
 onUnmounted(() => {
   univerAPI?.disposeUniver();
-  gridApi?.destroy();
 });
 
 function collectDataFromSheet() {
@@ -147,14 +122,9 @@ function runSheet() {
   try {
     const { headers, rows } = collectDataFromSheet();
 
-    // Update AG Grid
-    columnDefs.value = headers.map((h) => ({ field: h, headerName: h }));
-    rowData.value = rows;
-
-    if (gridApi) {
-      gridApi.setGridOption("columnDefs", columnDefs.value);
-      gridApi.setGridOption("rowData", rowData.value);
-    }
+    // Update ResultTable
+    resultColumns.value = headers;
+    resultRows.value = rows;
 
     status.value = "Done";
   } catch (err: any) {
@@ -184,8 +154,8 @@ function runSheet() {
     </div>
 
     <div class="section">
-      <div class="section-title">AG Grid Result</div>
-      <div class="ag-grid-container ag-theme-alpine" ref="agGridContainerRef"></div>
+      <div class="section-title">Result Table</div>
+      <ResultTable :columns="resultColumns" :rows="resultRows" />
     </div>
   </div>
 </template>
@@ -257,9 +227,8 @@ function runSheet() {
   overflow: hidden;
 }
 
-.ag-grid-container {
-  height: 200px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+.section:last-child {
+  flex: 1;
+  min-height: 200px;
 }
 </style>
