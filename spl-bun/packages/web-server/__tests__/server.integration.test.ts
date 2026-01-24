@@ -3,14 +3,18 @@ import { existsSync, readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { apiRoutes, type ExecuteRequest } from "@esproc/web-shared";
-import { app } from "../src/server";
+import { createApp } from "../src/server";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const dataDir = join(__dirname, "../data");
+// Deterministic, ignored test DB. Rebuilt from SQL on each test run.
+const testDbPath = join(dataDir, "out", "demo.test.db");
 const salesCsvPath = join(dataDir, "sales.csv");
 const productsCsvPath = join(dataDir, "products.csv");
 const configJsonPath = join(dataDir, "config.json");
 const usersJsonPath = join(dataDir, "users.json");
+
+const { app } = createApp({ dbPath: testDbPath, resetDb: true });
 
 async function postExecute(payload: ExecuteRequest) {
   const res = await app.handle(

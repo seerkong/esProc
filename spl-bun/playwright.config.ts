@@ -20,7 +20,13 @@ export default defineConfig({
     {
       command: "bun run dev:backend",
       url: "http://localhost:4176/api/health",
-      reuseExistingServer: !process.env.CI,
+      // Backend must not be re-used, otherwise local/manual DB mutations can leak into e2e.
+      reuseExistingServer: false,
+      env: {
+        // Use an ignored, throwaway DB for e2e and rebuild it each run.
+        SPL_DEMO_DB_PATH: "data/out/demo.e2e.db",
+        SPL_DEMO_DB_RESET: "1",
+      },
       timeout: 60_000,
     },
     {
