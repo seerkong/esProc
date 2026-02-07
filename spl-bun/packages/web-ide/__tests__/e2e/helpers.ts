@@ -37,11 +37,11 @@ export async function stopServices(): Promise<void> {
 }
 
 /**
- * Wait for demo dropdown and result grid to render.
+ * Wait for demo dropdown and result table to render.
  */
 export async function waitForDemoLoad(page: Page): Promise<void> {
   await page.waitForSelector("#demoSelect");
-  await page.waitForSelector(".ag-grid-container");
+  await page.waitForSelector(".result-table-wrap");
 }
 
 /**
@@ -81,18 +81,18 @@ export async function runSheet(page: Page, expectStatus: "done" | "error" | "any
 }
 
 /**
- * Extract AG Grid headers and row cell text.
+ * Extract result table headers and row cell text.
  */
 export async function getGridData(page: Page): Promise<{ rows: string[][]; columns: string[] }> {
-  await page.waitForSelector(".ag-grid-container .ag-root-wrapper");
+  await page.waitForSelector(".result-table-wrap");
   const columns = await page
-    .locator(".ag-header-cell-text")
+    .locator(".data-grid thead th:not(.select-col)")
     .allTextContents();
   const rows = await page
-    .locator(".ag-center-cols-container .ag-row")
+    .locator(".data-grid tbody tr")
     .evaluateAll((rows) =>
       rows.map((row) =>
-        Array.from(row.querySelectorAll<HTMLElement>(".ag-cell")).map((cell) => cell.innerText.trim())
+        Array.from(row.querySelectorAll<HTMLElement>("td.data-cell")).map((cell) => cell.innerText.trim())
       )
     );
   return { columns: columns.map((col) => col.trim()).filter(Boolean), rows };

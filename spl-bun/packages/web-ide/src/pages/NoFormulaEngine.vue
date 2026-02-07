@@ -1,34 +1,26 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, shallowRef } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { UniverSheetsCorePreset } from "@univerjs/preset-sheets-core";
 import UniverPresetSheetsCoreEnUS from "@univerjs/preset-sheets-core/locales/en-US";
 import { createUniver, LocaleType, mergeLocales } from "@univerjs/presets";
 import type { FUniver, FWorkbook } from "@univerjs/presets";
-import { createGrid, type GridApi, type GridOptions } from "ag-grid-community";
-import { initAgGrid } from "../utils/agGridInit";
+import ResultTable from "../components/ResultTable.vue";
 
 import "@univerjs/preset-sheets-core/lib/index.css";
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-alpine.css";
-
-// Initialize AG Grid modules
-initAgGrid();
 
 const univerContainerRef = ref<HTMLDivElement>();
-const agGridContainerRef = ref<HTMLDivElement>();
 
 const status = ref<string>("Idle");
-const rowData = shallowRef<Record<string, any>[]>([]);
-const columnDefs = shallowRef<{ field: string; headerName: string }[]>([]);
+const resultColumns = ref<string[]>([]);
+const resultRows = ref<Record<string, unknown>[]>([]);
 
 let univerAPI: FUniver | null = null;
 let workbook: FWorkbook | null = null;
-let gridApi: GridApi | null = null;
 
 onMounted(() => {
   if (!univerContainerRef.value) return;
 
-  // Create Univer WITHOUT formula calculation
+  // Create Univer WITHOUT formula calculation.
   const { univerAPI: api } = createUniver({
     locale: LocaleType.EN_US,
     locales: {
@@ -37,7 +29,6 @@ onMounted(() => {
     presets: [
       UniverSheetsCorePreset({
         container: univerContainerRef.value,
-        // Disable formula bar UI
         formulaBar: false,
       }),
     ],
@@ -45,7 +36,7 @@ onMounted(() => {
 
   univerAPI = api;
 
-  // Create workbook - values starting with = will be stored as plain text
+  // Values are stored as plain text in this page.
   workbook = univerAPI.createWorkbook({
     id: "workbook-01",
     name: "SPL Sheet",
@@ -61,7 +52,6 @@ onMounted(() => {
           },
           1: {
             0: { v: "A2" },
-            // Store as plain text value, not formula
             1: { v: "select * from products" },
           },
           2: {
@@ -80,48 +70,31 @@ onMounted(() => {
   });
 
   console.log("[Univer] Created without formula engine processing");
-
-  // Initialize AG Grid
-  if (agGridContainerRef.value) {
-    const gridOptions: GridOptions = {
-      columnDefs: [],
-      rowData: [],
-      defaultColDef: {
-        resizable: true,
-        sortable: true,
-        flex: 1,
-      },
-      suppressMovableColumns: true,
-    };
-
-    gridApi = createGrid(agGridContainerRef.value, gridOptions);
-  }
 });
 
 onUnmounted(() => {
   univerAPI?.disposeUniver();
-  gridApi?.destroy();
 });
 
-function collectDataFromSheet() {
-  if (!workbook) return { headers: [] as string[], rows: [] as Record<string, any>[] };
+function collectDataFromSheet(): { headers: string[]; rows: Record<string, unknown>[] } {
+  if (!workbook) return { headers: [], rows: [] };
 
   const sheet = workbook.getActiveSheet();
   if (!sheet) return { headers: [], rows: [] };
 
   const headers: string[] = [];
-  const rows: Record<string, any>[] = [];
+  const rows: Record<string, unknown>[] = [];
 
-  // Get headers from first row
+  // Get headers from first row.
   for (let c = 0; c < 2; c++) {
     const range = sheet.getRange(0, c);
     const val = range?.getValue();
     headers.push(val !== undefined && val !== null ? String(val) : `Col${c + 1}`);
   }
 
-  // Get data rows
+  // Get data rows.
   for (let r = 1; r < 4; r++) {
-    const row: Record<string, any> = {};
+    const row: Record<string, unknown> = {};
     for (let c = 0; c < 2; c++) {
       const range = sheet.getRange(r, c);
       const val = range?.getValue();
@@ -133,25 +106,17 @@ function collectDataFromSheet() {
   return { headers, rows };
 }
 
-function runSheet() {
+function runSheet(): void {
   status.value = "Running...";
 
   try {
     const { headers, rows } = collectDataFromSheet();
-
-    // Update AG Grid
-    columnDefs.value = headers.map((h) => ({ field: h, headerName: h }));
-    rowData.value = rows;
-
-    if (gridApi) {
-      gridApi.setGridOption("columnDefs", columnDefs.value);
-      gridApi.setGridOption("rowData", rowData.value);
-    }
-
+    resultColumns.value = headers;
+    resultRows.value = rows;
     status.value = "Done";
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err);
-    status.value = `Error: ${err?.message ?? err}`;
+    status.value = `Error: ${err instanceof Error ? err.message : String(err)}`;
   }
 }
 </script>
@@ -166,7 +131,7 @@ function runSheet() {
     <div class="info">
       <strong>No Formula Engine:</strong>
       Text is stored as plain values. Type expressions directly without <code>=</code> prefix.
-      <br>
+      <br />
       Example: <code>select * from products</code> (not <code>=select * from products</code>)
     </div>
 
@@ -175,9 +140,9 @@ function runSheet() {
       <div class="univer-container" ref="univerContainerRef"></div>
     </div>
 
-    <div class="section">
-      <div class="section-title">AG Grid Result</div>
-      <div class="ag-grid-container ag-theme-alpine" ref="agGridContainerRef"></div>
+    <div class="section result-section">
+      <div class="section-title">Result Table</div>
+      <ResultTable :columns="resultColumns" :rows="resultRows" />
     </div>
   </div>
 </template>
@@ -249,9 +214,8 @@ function runSheet() {
   overflow: hidden;
 }
 
-.ag-grid-container {
-  height: 200px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+.result-section {
+  flex: 1;
+  min-height: 240px;
 }
 </style>
