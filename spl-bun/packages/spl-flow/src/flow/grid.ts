@@ -29,6 +29,7 @@ export type FlowGridCell = {
   raw: string;
   kind: FlowCellKind;
   normalizedExpr?: string;
+  executeOnly?: boolean;
   command?: FlowCommand;
 };
 
@@ -161,7 +162,9 @@ export function parseCommandCell(textInput: string): FlowCommand | null {
   }
 }
 
-export function classifyCellText(rawInput: string): Pick<FlowGridCell, "kind" | "normalizedExpr" | "command"> {
+export function classifyCellText(
+  rawInput: string,
+): Pick<FlowGridCell, "kind" | "normalizedExpr" | "command" | "executeOnly"> {
   const raw = String(rawInput);
   const trimmed = raw.trim();
 
@@ -180,11 +183,15 @@ export function classifyCellText(rawInput: string): Pick<FlowGridCell, "kind" | 
   }
 
   let expression = trimmed;
-  if (expression.startsWith("=") || expression.startsWith(">")) {
+  let executeOnly = false;
+  if (expression.startsWith("=")) {
     expression = expression.slice(1).trimStart();
+  } else if (expression.startsWith(">")) {
+    expression = expression.slice(1).trimStart();
+    executeOnly = true;
   }
 
-  return { kind: "expression", normalizedExpr: expression };
+  return { kind: "expression", normalizedExpr: expression, executeOnly };
 }
 
 function makeBlankCell(row: number, col: string): FlowGridCell {
@@ -280,16 +287,17 @@ export function buildFlowGrid(flowCells: FlowCell[]): FlowGrid {
 
     for (const cell of kept) {
       const classified = classifyCellText(cell.raw);
-      const gridCell: FlowGridCell = {
-        row: cell.row,
-        col: cell.col,
-        colIndex: cell.colIndex,
-        cellRef: cell.cellRef,
-        raw: cell.raw,
-        kind: classified.kind,
-        normalizedExpr: classified.normalizedExpr,
-        command: classified.command,
-      };
+    const gridCell: FlowGridCell = {
+      row: cell.row,
+      col: cell.col,
+      colIndex: cell.colIndex,
+      cellRef: cell.cellRef,
+      raw: cell.raw,
+      kind: classified.kind,
+      normalizedExpr: classified.normalizedExpr,
+      executeOnly: classified.executeOnly,
+      command: classified.command,
+    };
       byRef.set(cell.cellRef, gridCell);
       maxRow = Math.max(maxRow, cell.row);
       maxColIndex = Math.max(maxColIndex, cell.colIndex);

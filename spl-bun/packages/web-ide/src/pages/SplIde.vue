@@ -457,6 +457,18 @@ const demos: Demo[] = [
       { row: 4, col: "A", expr: 'end "boom"' },
     ],
   },
+  {
+    id: "flow-execute-only",
+    label: "Flow Control: Execute-only (>)",
+    description: "Leading '>' executes without assigning a cell value",
+    cells: [
+      { row: 1, col: "A", expr: "x = 10" },
+      { row: 2, col: "A", expr: ">x * 2" },
+      { row: 3, col: "A", expr: 'rows = [ { name: "x", value: x }, { name: "A2_unset", value: A2 == null } ]' },
+      { row: 4, col: "A", expr: 'out = { columns: ["name", "value"], rows: rows }' },
+      { row: 5, col: "A", expr: "out" },
+    ],
+  },
 ];
 
 const status = ref<string>("Idle");

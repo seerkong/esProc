@@ -37,3 +37,4 @@ This document lists common expression forms supported by the current parser.
 - `=` is assignment; use `==` for equality.
 - Commas form a sequence, returning the last expression.
 - Member calls support comma-separated arguments.
+- In spl-flow grids, a leading `>` marks an execute-only expression (runs but does not assign a cell value).

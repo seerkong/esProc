@@ -13,8 +13,10 @@ describe("spl-flow compatibility", () => {
     const res = await evaluateFlow(cells, {});
     expect(res.cells.every((c) => c.status === "ok")).toBe(true);
     expect(res.scope.A1).toBe(3);
-    expect(res.scope.A2).toBe(3);
+    expect("A2" in res.scope).toBe(false);
     expect(res.scope.A3).toBe(3);
+    const executeOnlyCell = res.cells.find((cell) => cell.row === 2 && cell.col === "A");
+    expect(executeOnlyCell?.result).toBe(3);
   });
 
   test("treats if(...) as expression, not a statement command", async () => {

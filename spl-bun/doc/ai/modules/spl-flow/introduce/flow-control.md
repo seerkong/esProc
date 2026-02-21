@@ -4,6 +4,19 @@
 
 spl-flow 支持完整的流程控制语句，包括条件、循环、跳转、子程序和异常处理。
 
+## 表达式前缀
+
+在网格表达式中，前缀用于区分计算格与执行格：
+
+- `=` 前缀：计算格，执行后将结果写入 `scope[cellRef]`。
+- `>` 前缀：执行格，执行后不写入 `scope[cellRef]`，但会记录执行结果并可更新 `lastQuery`。
+
+前缀仅适用于表达式格；命令格（if/for/try 等）不使用前缀。
+
+参考资料：
+- https://doc.esproc.com/esproc/tutorial/dyglx.html (Executable cell)
+- http://doc.raqsoft.com.cn/esproc/tutorial/dyglx.html (执行格)
+
 ## 条件语句 (if/elseif/else)
 
 ### 语法

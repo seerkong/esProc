@@ -31,6 +31,11 @@ test("runs flow-control demos", async ({ page }) => {
     { label: "Flow Control: Try", expectNames: ["try", "ok"], expectValueFor: { ok: "2" } },
     { label: "Flow Control: Result", expectNames: ["phase"], expectValueFor: { phase: "before-result" } },
     { label: "Flow Control: End", expectStatus: "error", expectStatusContains: "boom" },
+    {
+      label: "Flow Control: Execute-only (>)",
+      expectNames: ["x", "A2_unset"],
+      expectValueFor: { x: "10", A2_unset: "true" },
+    },
   ];
 
   for (const demo of demos) {

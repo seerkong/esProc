@@ -46,6 +46,7 @@ describe("spl-flow grid model", () => {
     expect(grid.getCellByRef("A4")?.normalizedExpr).toBe("1 + 2");
     expect(grid.getCellByRef("A5")?.normalizedExpr).toBe("1 + 2");
     expect(grid.getCellByRef("A6")?.normalizedExpr).toBe("1 + 2");
+    expect(grid.getCellByRef("A6")?.executeOnly).toBe(true);
 
     expect(grid.getCellByRef("A7")?.kind).toBe("command");
     expect(grid.getCellByRef("A7")?.command?.kind).toBe("if");

@@ -827,7 +827,9 @@ export async function evaluateFlow(
     }
     try {
       const value = await evalExpression(expression);
-      scope[cell.cellRef] = value;
+      if (!cell.executeOnly) {
+        scope[cell.cellRef] = value;
+      }
 
       const queryResult = toQueryResult(value);
       if (queryResult) {
@@ -1244,7 +1246,9 @@ export async function evaluateFlow(
         }
         try {
           const value = await evalExpression(expression);
-          scope[cell.cellRef] = value;
+          if (!cell.executeOnly) {
+            scope[cell.cellRef] = value;
+          }
 
           const queryResult = toQueryResult(value);
           if (queryResult) {

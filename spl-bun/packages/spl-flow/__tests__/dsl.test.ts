@@ -55,4 +55,34 @@ describe("spl-flow evaluation", () => {
     expect(String(result.cells[0].error)).toContain("no such file or directory");
     expect(result.cells[0].error).toBeDefined();
   });
+
+  test("execute-only expressions do not assign to scope", async () => {
+    const cells: FlowCell[] = [
+      { row: 1, col: "A", expr: "x = 1" },
+      { row: 2, col: "A", expr: ">x + 1" },
+      { row: 3, col: "A", expr: "x" },
+    ];
+
+    const result = await evaluateFlow(cells, {});
+    expect(result.cells.every((cell) => cell.status === "ok")).toBe(true);
+    expect(result.scope.A1).toBe(1);
+    expect("A2" in result.scope).toBe(false);
+    expect(result.scope.A3).toBe(1);
+    const executeOnlyCell = result.cells.find((cell) => cell.row === 2 && cell.col === "A");
+    expect(executeOnlyCell?.result).toBe(2);
+  });
+
+  test("execute-only expressions update lastQuery", async () => {
+    const connections = new Map([["demo", { name: "demo", type: "sqlite" }]]);
+    const queryResult = { columns: ["v"], rows: [{ v: 1 }] };
+    const result = await evaluateFlow([{ row: 1, col: "A", expr: `>demo.query("select 1 as v")` }], {
+      connections,
+      defaultDbPath: "db.sqlite",
+      adapters: { sqliteQuery: () => queryResult },
+    });
+
+    expect(result.cells[0].status).toBe("ok");
+    expect("A1" in result.scope).toBe(false);
+    expect(result.lastQuery).toEqual(queryResult);
+  });
 });
